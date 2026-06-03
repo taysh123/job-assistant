@@ -18,6 +18,27 @@ def test_init_db_creates_schema(tmp_path, capsys):
     assert {"jobs", "runs", "bot_state"} <= tables
 
 
+def test_reset_seen_jobs_command(tmp_path, capsys):
+    from job_assistant.db.repository import Repository
+    from job_assistant.models import JobStatus
+    from tests.conftest import make_job
+
+    db = tmp_path / "jobs.db"
+    with Repository(str(db)) as repo:
+        repo.init_schema()
+        jobs = repo.insert_new_jobs([make_job(external_id="1"), make_job(external_id="2")])
+        repo.set_status(jobs[0].id, JobStatus.SAVED)
+
+    rc = main(["--db", str(db), "reset-seen-jobs"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "cleared 1" in out
+    assert "kept 1" in out
+
+    with Repository(str(db)) as repo:
+        assert repo.status_counts() == {"saved": 1}
+
+
 def test_collect_dry_run_offline(tmp_path, monkeypatch, capsys):
     # No sources enabled -> no network; exercises the full wiring.
     monkeypatch.setattr("job_assistant.pipeline.collect_all", lambda cfg: [])

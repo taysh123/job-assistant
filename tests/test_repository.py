@@ -64,6 +64,40 @@ def test_status_and_source_counts(repo):
     assert repo.source_counts() == {"remotive": 1, "weworkremotely": 1}
 
 
+def test_reset_seen_jobs_keeps_saved_and_applied(repo):
+    jobs = repo.insert_new_jobs([
+        make_job(external_id="1"),  # new
+        make_job(external_id="2"),  # -> saved
+        make_job(external_id="3"),  # -> applied
+        make_job(external_id="4"),  # -> ignored
+    ])
+    repo.set_status(jobs[1].id, JobStatus.SAVED)
+    repo.set_status(jobs[2].id, JobStatus.APPLIED)
+    repo.set_status(jobs[3].id, JobStatus.IGNORED)
+
+    result = repo.reset_seen_jobs()
+    assert result == {"deleted": 2, "kept": 2}  # new + ignored cleared
+
+    remaining = repo.status_counts()
+    assert remaining == {"saved": 1, "applied": 1}
+
+
+def test_reset_seen_jobs_makes_jobs_resendable(repo):
+    from job_assistant.filtering.dedup import filter_unseen
+
+    a = make_job(external_id="1")
+    repo.insert_new_jobs([a])
+    # Already seen -> not eligible.
+    assert filter_unseen([a], repo) == []
+    repo.reset_seen_jobs()
+    # After reset -> eligible again.
+    assert [j.external_id for j in filter_unseen([a], repo)] == ["1"]
+
+
+def test_reset_seen_jobs_empty_db(repo):
+    assert repo.reset_seen_jobs() == {"deleted": 0, "kept": 0}
+
+
 def test_bot_state_kv(repo):
     assert repo.get_state("offset") is None
     repo.set_state("offset", "42")

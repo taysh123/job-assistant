@@ -133,6 +133,30 @@ class Repository:
         )
         self.conn.commit()
 
+    def reset_seen_jobs(
+        self, keep_statuses: tuple[JobStatus, ...] = (JobStatus.SAVED, JobStatus.APPLIED)
+    ) -> dict[str, int]:
+        """Clear deduplication state so stored jobs can be sent again.
+
+        Deletes job rows whose status is *not* in ``keep_statuses`` (by default
+        everything except Saved and Applied). Those removed dedup keys are no
+        longer "seen", so the next collection re-discovers and re-sends them.
+        Saved/Applied jobs are retained — their status is preserved and they stay
+        de-duplicated so you aren't re-notified about jobs you've acted on.
+
+        Config (YAML files), run history, and bot state are untouched.
+        Returns ``{"deleted": N, "kept": M}``.
+        """
+        keep = [s.value for s in keep_statuses]
+        placeholders = ",".join("?" * len(keep)) or "''"
+        before = self.conn.execute("SELECT COUNT(*) c FROM jobs").fetchone()["c"]
+        cur = self.conn.execute(
+            f"DELETE FROM jobs WHERE status NOT IN ({placeholders})", keep
+        )
+        self.conn.commit()
+        deleted = cur.rowcount
+        return {"deleted": deleted, "kept": before - deleted}
+
     def list_by_status(self, status: JobStatus, limit: int = 25) -> list[Job]:
         rows = self.conn.execute(
             "SELECT * FROM jobs WHERE status = ? ORDER BY first_seen_at DESC LIMIT ?",

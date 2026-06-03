@@ -7,6 +7,7 @@ Usage:
     python -m job_assistant.cli weekly
     python -m job_assistant.cli test-telegram
     python -m job_assistant.cli test-job-card
+    python -m job_assistant.cli reset-seen-jobs
 
 Each subcommand is a single, stateless operation suitable for a GitHub
 Actions cron step (or local invocation).
@@ -125,6 +126,18 @@ def cmd_test_job_card(args) -> int:
     return 0
 
 
+def cmd_reset_seen_jobs(args) -> int:
+    with Repository(args.db) as repo:
+        repo.init_schema()
+        result = repo.reset_seen_jobs()
+    print(
+        f"Reset dedup state: cleared {result['deleted']} job(s); "
+        f"kept {result['kept']} saved/applied job(s). "
+        "Previously-seen jobs will be collected and sent again on the next run."
+    )
+    return 0
+
+
 def cmd_weekly(args) -> int:
     secrets = load_secrets()
     with Repository(args.db) as repo:
@@ -151,6 +164,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("weekly", help="Send the weekly summary")
     sub.add_parser("test-telegram", help="Send a test message to verify Telegram connectivity")
     sub.add_parser("test-job-card", help="Send a sample job card (production formatting + buttons)")
+    sub.add_parser(
+        "reset-seen-jobs",
+        help="Clear dedup state so stored jobs can be sent again (keeps Saved/Applied)",
+    )
     return parser
 
 
@@ -161,6 +178,7 @@ HANDLERS = {
     "weekly": cmd_weekly,
     "test-telegram": cmd_test_telegram,
     "test-job-card": cmd_test_job_card,
+    "reset-seen-jobs": cmd_reset_seen_jobs,
 }
 
 

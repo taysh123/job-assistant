@@ -134,6 +134,24 @@ See `config/config.example.yaml` for an annotated template.
 `new → saved | ignored | opened | applied`. Each job is sent once
 (`dedup_key` UNIQUE); the same posting is never re-sent.
 
+## Maintenance
+
+```powershell
+python -m job_assistant.cli reset-seen-jobs
+```
+
+Clears the deduplication state so previously-seen jobs become eligible to be
+collected and **sent again** on the next run. Useful after broadening your
+filters or if a digest was lost.
+
+It is non-destructive to your settings and tracking:
+- **Configuration** (`config/*.yaml`) is never touched.
+- **Saved** and **Applied** jobs are kept — their status is preserved and they
+  stay de-duplicated, so you won't be re-notified about jobs you've acted on.
+- Run history and Telegram state are untouched.
+
+(New / ignored / opened jobs are the dedup entries that get cleared.)
+
 ---
 
 ## Cost
