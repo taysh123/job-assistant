@@ -1,0 +1,54 @@
+# Job Assistant preferences.
+# Copy to config/config.yaml and edit. Secrets (Telegram token/chat id) go in
+# environment variables / GitHub Actions secrets, NOT here.
+
+sources:
+  remotive:
+    enabled: true
+    # Remotive category slugs. "software-dev" is the main engineering category.
+    categories: ["software-dev"]
+    search: ""        # optional free-text query
+    limit: 100
+
+  weworkremotely:
+    enabled: true
+    # RSS feed slugs from https://weworkremotely.com/categories
+    feeds:
+      - "remote-programming-jobs"
+      - "remote-full-stack-programming-jobs"
+
+  greenhouse:
+    enabled: false
+    # Board tokens = the company slug in a Greenhouse board URL, e.g.
+    # https://boards.greenhouse.io/<token>
+    boards: []        # e.g. ["stripe", "figma"]
+
+  lever:
+    enabled: false
+    # Company slug in a Lever URL, e.g. https://jobs.lever.co/<slug>
+    boards: []        # e.g. ["netflix"]
+
+filters:
+  # A job is kept if it matches >= min_match_score allow terms (in title or
+  # summary), has no deny term, and passes the remote/location/seniority gates.
+  titles_allow: ["engineer", "developer", "backend", "full stack", "python"]
+  keywords_allow: ["python", "backend", "api", "django", "fastapi"]
+  keywords_deny: ["unpaid", "internship", "crypto", "web3"]
+
+  # any | remote_only | onsite_only
+  remote: "any"
+
+  # For on-site jobs, restrict to these locations (remote jobs always pass).
+  locations_allow: []         # e.g. ["berlin", "germany", "remote"]
+  locations_deny: []          # e.g. ["india"]
+
+  # Optional seniority gating (matched against the title).
+  seniority_allow: []         # e.g. ["junior", "mid", "intermediate"]
+  seniority_deny: ["principal", "staff", "vp", "head of"]
+
+  min_match_score: 1
+
+digest:
+  max_jobs: 25                # cap cards per run
+  summary_chars: 280          # truncate posting summary to this length
+  timezone: "UTC"

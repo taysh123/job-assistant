@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "id": 1001,
+      "url": "https://remotive.com/remote-jobs/software-dev/backend-python-1001",
+      "title": "Backend Python Engineer",
+      "company_name": "Acme Cloud",
+      "category": "Software Development",
+      "candidate_required_location": "Worldwide",
+      "publication_date": "2026-05-30T09:15:00",
+      "description": "<p>We need a <strong>Python</strong> backend engineer to build APIs.</p>"
+    },
+    {
+      "id": 1002,
+      "url": "https://remotive.com/remote-jobs/software-dev/senior-frontend-1002",
+      "title": "Senior Frontend Engineer",
+      "company_name": "Pixel Labs",
+      "category": "Software Development",
+      "candidate_required_location": "Europe",
+      "publication_date": "2026-05-29T12:00:00",
+      "description": "<p>React and TypeScript role.</p>"
+    }
+  ]
+}

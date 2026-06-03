@@ -1,0 +1,33 @@
+name: Collect jobs
+
+on:
+  schedule:
+    # Twice daily (UTC). Adjust to your timezone.
+    - cron: "0 7 * * *"
+    - cron: "0 18 * * *"
+  workflow_dispatch: {}
+
+# Serialize every workflow that writes data/jobs.db so commits never race.
+concurrency:
+  group: job-assistant-db
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - name: Collect and send digest
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m job_assistant.cli collect
+      - name: Commit database
+        run: bash .github/scripts/commit-db.sh "chore(data): collect"

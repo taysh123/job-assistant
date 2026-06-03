@@ -1,0 +1,31 @@
+name: Weekly summary
+
+on:
+  schedule:
+    # Mondays 08:00 UTC.
+    - cron: "0 8 * * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: job-assistant-db
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - name: Send weekly summary
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m job_assistant.cli weekly
+      - name: Commit database
+        run: bash .github/scripts/commit-db.sh "chore(data): weekly summary"

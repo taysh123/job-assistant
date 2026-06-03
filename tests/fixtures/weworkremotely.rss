@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>We Work Remotely: Remote Programming Jobs</title>
+    <link>https://weworkremotely.com/categories/remote-programming-jobs</link>
+    <item>
+      <title>Globex: Senior Python Developer</title>
+      <link>https://weworkremotely.com/remote-jobs/globex-senior-python-developer-2001</link>
+      <region>Anywhere in the World</region>
+      <pubDate>Fri, 30 May 2026 08:00:00 +0000</pubDate>
+      <description>&lt;p&gt;Join us to build &lt;strong&gt;Django&lt;/strong&gt; services.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Initech: Ruby on Rails Engineer</title>
+      <link>https://weworkremotely.com/remote-jobs/initech-ruby-on-rails-engineer-2002</link>
+      <region>USA Only</region>
+      <pubDate>Thu, 29 May 2026 14:30:00 +0000</pubDate>
+      <description>&lt;p&gt;Rails backend work.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

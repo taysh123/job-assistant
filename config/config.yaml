@@ -1,0 +1,39 @@
+# Active preferences (copied from config.example.yaml). Edit to taste.
+# Secrets live in environment variables / GitHub Actions secrets, not here.
+
+sources:
+  remotive:
+    enabled: true
+    categories: ["software-dev"]
+    search: ""
+    limit: 100
+
+  weworkremotely:
+    enabled: true
+    feeds:
+      - "remote-programming-jobs"
+      - "remote-full-stack-programming-jobs"
+
+  greenhouse:
+    enabled: false
+    boards: []
+
+  lever:
+    enabled: false
+    boards: []
+
+filters:
+  titles_allow: ["engineer", "developer", "backend", "full stack", "python"]
+  keywords_allow: ["python", "backend", "api", "django", "fastapi"]
+  keywords_deny: ["unpaid", "internship", "crypto", "web3"]
+  remote: "any"
+  locations_allow: []
+  locations_deny: []
+  seniority_allow: []
+  seniority_deny: ["principal", "staff", "vp", "head of"]
+  min_match_score: 1
+
+digest:
+  max_jobs: 25
+  summary_chars: 280
+  timezone: "UTC"

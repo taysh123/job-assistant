@@ -1,0 +1,2 @@
+# Track the SQLite DB as binary so git doesn't attempt line diffs/merges.
+data/jobs.db binary

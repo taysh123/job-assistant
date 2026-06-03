@@ -1,0 +1,20 @@
+[
+  {
+    "id": "4001-abcd",
+    "text": "Full Stack Engineer",
+    "categories": {"commitment": "Full Time", "location": "Remote", "team": "Engineering"},
+    "workplaceType": "remote",
+    "hostedUrl": "https://jobs.lever.co/initrode/4001-abcd",
+    "createdAt": 1748534400000,
+    "descriptionPlain": "Work across the stack with Node and React."
+  },
+  {
+    "id": "4002-efgh",
+    "text": "Engineering Manager",
+    "categories": {"commitment": "Full Time", "location": "London, UK", "team": "Engineering"},
+    "workplaceType": "on-site",
+    "hostedUrl": "https://jobs.lever.co/initrode/4002-efgh",
+    "createdAt": 1748448000000,
+    "descriptionPlain": "Lead a team of engineers."
+  }
+]

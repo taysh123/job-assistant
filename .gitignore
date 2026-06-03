@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ai/
+
+# Secrets / local config
+.env
+config/config.local.yaml
+
+# Local-only databases (the production DB lives at data/jobs.db and IS tracked)
+*.db-journal
+*.db-wal
+*.db-shm

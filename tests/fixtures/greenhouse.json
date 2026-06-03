@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "id": 3001,
+      "title": "Staff Software Engineer, Platform",
+      "updated_at": "2026-05-28T17:45:12-04:00",
+      "location": {"name": "Remote - US"},
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/3001",
+      "content": "&lt;p&gt;Build distributed systems in &lt;b&gt;Go&lt;/b&gt;.&lt;/p&gt;"
+    },
+    {
+      "id": 3002,
+      "title": "Data Engineer",
+      "updated_at": "2026-05-27T10:00:00Z",
+      "location": {"name": "Berlin, Germany"},
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/3002",
+      "content": "&lt;p&gt;ETL pipelines with Python.&lt;/p&gt;"
+    }
+  ]
+}
