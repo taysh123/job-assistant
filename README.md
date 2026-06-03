@@ -2,10 +2,11 @@
 
 A personal, low-cost job-finding assistant. On a schedule it collects new
 software-engineering postings from configured sources, filters them by your
-preferences, removes duplicates, and sends concise **job cards to Telegram**.
-You react with **Save / Ignore / Open / Mark-Applied**, and everything is tracked
-in a local SQLite database. A **weekly summary** reports what was found and what
-you did with it.
+preferences, removes duplicates, and sends **one paginated digest message to
+Telegram** — one job card at a time (default 1/page) with **⬅️ Prev /
+Next ➡️** navigation. Each job has **Save / Ignore / Open / Mark-Applied**, and
+everything is tracked in a local SQLite database. A **weekly summary** reports
+what was found and what you did with it.
 
 **v1 deliberately does _not_:** submit applications automatically, scrape behind
 logins/captchas, or use any AI. It favours reliability and easy maintenance.
@@ -16,10 +17,11 @@ logins/captchas, or use any AI. It favours reliability and easy maintenance.
 
 ```
 sources ──► filter engine ──► dedup ──► SQLite ──► Telegram digest
-(Remotive,    (allow/deny,    (per-run +   (jobs,      (one card per job,
- WWR RSS,      remote/loc/     DB unseen)   runs,        Save/Ignore/Open/
- Greenhouse,   seniority,                   bot_state)   Mark-Applied)
- Lever)        scoring)
+(Remotive,    (allow/deny,    (per-run +   (jobs,      (ONE paginated
+ WWR RSS,      remote/loc/     DB unseen)   runs,        message: Prev/Next +
+ Greenhouse,   seniority,                   bot_state)   Save/Ignore/Open/
+ Lever,        scoring)                                  Mark-Applied)
+ LinkedIn*)   *opt: alert emails
 ```
 
 Three scheduled jobs (GitHub Actions cron), all serialized on one `concurrency`
@@ -33,10 +35,12 @@ group so they never clash writing the database:
 | `ci.yml` | on push/PR | run the test suite |
 
 > **Interactivity note.** GitHub Actions can't host a live bot, so commands and
-> button presses are processed at the next `bot.yml` run (default every 20 min),
-> not instantly. The **Open** button is a direct URL link, so it always works
-> immediately. To make buttons feel snappier, lower the `bot.yml` interval
-> (a public repo gets unlimited Actions minutes; see _Cost_ below).
+> button presses — including **Prev/Next** paging and Save/Ignore/Apply — are
+> processed at the next `bot.yml` run (default every 20 min), not instantly. The
+> digest message then edits in place (page state is preserved in SQLite). The
+> **Open** button is a direct URL link, so it always works immediately. To make
+> paging/actions feel snappier, lower the `bot.yml` interval (a public repo gets
+> unlimited Actions minutes; see _Cost_ below).
 
 State (`data/jobs.db`) is committed back to the repo after each run — the single
 durable copy of your jobs and their statuses.
@@ -98,6 +102,7 @@ pytest                                          # run the tests
 2. **Settings → Secrets and variables → Actions** → add:
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
+   - (optional, for LinkedIn) `IMAP_USERNAME`, `IMAP_PASSWORD`
 3. **Settings → Actions → General → Workflow permissions** → enable
    **Read and write permissions** (so workflows can commit `data/jobs.db`).
 4. Commit a config and an initialized DB so the first run has state:
@@ -110,6 +115,47 @@ pytest                                          # run the tests
 5. The crons start automatically. Trigger any workflow manually from the
    **Actions** tab via **Run workflow** to test.
 
+### 4. Optional: LinkedIn via Job-Alert emails (no scraping)
+LinkedIn has no open jobs API and scraping it is fragile/against its terms, so this
+source ingests **the Job-Alert emails LinkedIn already sends you** — safe and stable.
+
+1. On LinkedIn, run a job search and **turn on a Job Alert** (LinkedIn then emails you
+   matching jobs).
+2. Make those emails reachable over IMAP. For Gmail: enable IMAP, then create an
+   **App Password** (Account → Security → App passwords).
+3. Set secrets/env `IMAP_USERNAME` and `IMAP_PASSWORD` (use the App Password, not your
+   login password). IMAP host/folder live in `config.yaml`.
+4. In `config.yaml` set `sources.linkedin.enabled: true`.
+
+The source reads recent alert emails from the configured LinkedIn senders, extracts the
+job title + link (company/location best-effort), and feeds them through the same filter,
+dedup, and digest pipeline. It's skipped automatically if IMAP creds are absent, and any
+hiccup (bad creds, changed email layout) is logged and ignored — it never breaks a run.
+Email-template parsing is inherently best-effort; the job title + direct link are always
+captured so each lead stays actionable.
+
+**Why no LinkedIn auto-apply / Easy Apply?** LinkedIn exposes no public apply API; submitting
+Easy Apply programmatically would require logging in and automating the form — login automation
+that's brittle and against LinkedIn's terms, so this project does **not** do it. The safe,
+compliant flow is: leads arrive in the digest, you tap **🔗 Open** (it deep-links to the job's
+apply-ready page), and you complete Easy Apply yourself in one tap.
+
+### 5. Optional: Comeet ATS (Israeli companies, public API)
+Comeet is a common ATS among Israeli employers and exposes a **public Careers API**.
+
+1. For each target company, get its **uid** and **token** (on the Comeet side:
+   Settings → Careers Website → Careers API).
+2. In `config.yaml`, add entries under `sources.comeet.companies` and set `enabled: true`:
+   ```yaml
+   comeet:
+     enabled: true
+     companies:
+       - { name: "Example Co", uid: "30.005", token: "YOUR_TOKEN" }
+   ```
+
+Each company is fetched from the public API and flows through the same filter/dedup/digest
+pipeline. A wrong or stale uid/token is logged and skipped — it never breaks a run.
+
 ---
 
 ## Configuration (`config/config.yaml`)
@@ -121,6 +167,8 @@ The shipped defaults are tuned for a **Graduate / Junior software search in Isra
 
 - **sources** — toggle each source; the Greenhouse/Lever lists ship with a verified
   starter set of Israeli companies (add/remove slugs freely; WWR uses feed slugs).
+  `comeet` (Israeli ATS, public API; off by default) and `linkedin` (Job-Alert email
+  source; off by default) are optional — see Setup §4.
 - **filters**
   - `titles_allow` / `keywords_allow` — a job needs ≥ `min_match_score` hits (title or summary).
   - `keywords_deny` / `seniority_deny` / `locations_deny` — hard exclusions.
@@ -131,6 +179,18 @@ The shipped defaults are tuned for a **Graduate / Junior software search in Isra
   - `boost_keywords` / `boost_weight` — **ranking only**: matches (in title + location)
     add weight so junior + Israel/center roles sort to the top, without excluding any
     Israeli location or remote.
+  - `max_years_experience` / `experience_mode` / `experience_penalty` — junior-fit
+    **experience detection** (see below).
+- **digest** — `max_jobs` per run, `summary_chars`, `timezone`, `page_size` (1 = one job/page).
+
+### Experience detection
+Roles that **explicitly** require more years than `max_years_experience` (default `2`) are
+handled per `experience_mode`: `downrank` (default — a `experience_penalty` is subtracted so the
+role sinks but stays visible), `filter` (exclude), or `off`. Detection is tied to experience/
+requirement context — it catches `"5+ years"`, `"minimum 3 years"`, `"at least 4 years"`,
+`"3-5 years of experience"` (lower bound), and `"senior-level"`, while a plain `"Software
+Engineer"` or `"0–2 years"` role is **never** affected. This trims senior roles that slip past
+the title-based `seniority_deny` without hiding genuine junior leads.
 - **digest** — `max_jobs` per run, `summary_chars`, `timezone`.
 
 See `config/config.example.yaml` for an annotated template.

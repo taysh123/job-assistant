@@ -47,11 +47,42 @@ class LeverConfig(BaseModel):
     boards: list[str] = Field(default_factory=list)
 
 
+class ComeetCompany(BaseModel):
+    uid: str
+    token: str
+    name: str = ""  # optional display label; falls back to the API's company_name
+
+
+class ComeetConfig(BaseModel):
+    enabled: bool = False
+    # One entry per company; uid+token come from the company's public Careers API
+    # (Settings -> Careers Website -> Careers API on Comeet).
+    companies: list[ComeetCompany] = Field(default_factory=list)
+
+
+class LinkedInEmailConfig(BaseModel):
+    # LinkedIn coverage via Job-Alert EMAIL ingestion (no scraping/login). You
+    # create alerts on LinkedIn; LinkedIn emails matching jobs; we read your
+    # inbox over IMAP and parse them. Needs IMAP_USERNAME/IMAP_PASSWORD secrets.
+    enabled: bool = False
+    imap_host: str = "imap.gmail.com"
+    imap_folder: str = "INBOX"
+    senders: list[str] = Field(default_factory=lambda: [
+        "jobalerts-noreply@linkedin.com",
+        "jobs-noreply@linkedin.com",
+    ])
+    max_age_days: int = 3
+    mark_seen: bool = False
+    limit: int = 50
+
+
 class SourcesConfig(BaseModel):
     remotive: RemotiveConfig = Field(default_factory=RemotiveConfig)
     weworkremotely: WeWorkRemotelyConfig = Field(default_factory=WeWorkRemotelyConfig)
     greenhouse: GreenhouseConfig = Field(default_factory=GreenhouseConfig)
     lever: LeverConfig = Field(default_factory=LeverConfig)
+    comeet: ComeetConfig = Field(default_factory=ComeetConfig)
+    linkedin: LinkedInEmailConfig = Field(default_factory=LinkedInEmailConfig)
 
 
 # --- Filtering ------------------------------------------------------------
@@ -75,6 +106,14 @@ class FiltersConfig(BaseModel):
     # Minimum number of allow-list hits required to keep a job.
     min_match_score: int = 1
 
+    # Experience-requirement handling (keeps the search junior-friendly).
+    # A role is acted on only if it *explicitly* requires more than
+    # max_years_experience. experience_mode: downrank (penalise, stay visible) |
+    # filter (exclude) | off. Generic roles with no stated years are untouched.
+    max_years_experience: int = 2
+    experience_mode: str = "downrank"
+    experience_penalty: int = 8
+
     # Ranking only: jobs matching these terms (in title/summary/location) get
     # `boost_weight` added to their score so they sort to the top of the digest.
     # Boost never lets a job bypass the allow gate; empty list = no effect.
@@ -86,6 +125,9 @@ class DigestConfig(BaseModel):
     max_jobs: int = 25
     summary_chars: int = 280
     timezone: str = "UTC"
+    # Jobs shown per page in the single paginated digest message (1 = one card
+    # at a time, browsed with Prev/Next).
+    page_size: int = 1
 
 
 class Config(BaseModel):
@@ -99,10 +141,16 @@ class Config(BaseModel):
 class Secrets(BaseModel):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    imap_username: str = ""
+    imap_password: str = ""
 
     @property
     def is_configured(self) -> bool:
         return bool(self.telegram_bot_token and self.telegram_chat_id)
+
+    @property
+    def is_imap_configured(self) -> bool:
+        return bool(self.imap_username and self.imap_password)
 
 
 # --- Loaders --------------------------------------------------------------
@@ -130,4 +178,6 @@ def load_secrets() -> Secrets:
     return Secrets(
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
+        imap_username=os.getenv("IMAP_USERNAME", ""),
+        imap_password=os.getenv("IMAP_PASSWORD", ""),
     )

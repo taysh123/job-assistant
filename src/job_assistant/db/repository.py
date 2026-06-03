@@ -118,6 +118,21 @@ class Repository:
         row = self.conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         return _row_to_job(row) if row else None
 
+    def get_jobs(self, ids: list[int]) -> list[Job]:
+        """Fetch jobs for ``ids``, preserving the given order (missing ids skipped)."""
+        if not ids:
+            return []
+        found: dict[int, Job] = {}
+        for i in range(0, len(ids), 500):
+            chunk = ids[i : i + 500]
+            placeholders = ",".join("?" * len(chunk))
+            rows = self.conn.execute(
+                f"SELECT * FROM jobs WHERE id IN ({placeholders})", chunk
+            ).fetchall()
+            for r in rows:
+                found[r["id"]] = _row_to_job(r)
+        return [found[i] for i in ids if i in found]
+
     def set_status(self, job_id: int, status: JobStatus) -> bool:
         cur = self.conn.execute(
             "UPDATE jobs SET status = ?, last_status_at = ? WHERE id = ?",

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from ..config import FiltersConfig
 from ..models import Job
+from .experience import required_years
 
 REMOTE_ANY = "any"
 REMOTE_ONLY = "remote_only"
@@ -84,6 +85,15 @@ class FilterEngine:
         for hit in _contains_any(_boost_haystack(job), cfg.boost_keywords):
             score += cfg.boost_weight
             reasons.append(f"boost:{hit}")
+
+        # Experience requirement: act only when a role *explicitly* asks for more
+        # years than allowed (generic roles with no stated years pass untouched).
+        req = required_years(haystack)
+        if req is not None and req > cfg.max_years_experience and cfg.experience_mode != "off":
+            if cfg.experience_mode == "filter":
+                return None
+            score -= cfg.experience_penalty  # downrank: stays visible, sinks
+            reasons.append(f"exp≥{req}y")
 
         if job.remote:
             reasons.append("remote")

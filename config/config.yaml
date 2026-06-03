@@ -54,6 +54,28 @@ sources:
     boards:
       - "logz"
 
+  # Comeet ATS (very common among Israeli companies). Public Careers API; opt-in.
+  # Each company needs its uid + token (Comeet: Settings -> Careers Website ->
+  # Careers API). Wrong/stale entries are skipped safely.
+  comeet:
+    enabled: false
+    companies: []
+      # - { name: "Example Co", uid: "30.005", token: "YOUR_TOKEN" }
+
+  # LinkedIn via Job-Alert EMAIL ingestion (no scraping/login). Off by default.
+  # To use: create Job Alerts on LinkedIn, set IMAP_USERNAME/IMAP_PASSWORD secrets
+  # (e.g. a Gmail App Password), then set enabled: true. See README.
+  linkedin:
+    enabled: false
+    imap_host: "imap.gmail.com"
+    imap_folder: "INBOX"
+    senders:
+      - "jobalerts-noreply@linkedin.com"
+      - "jobs-noreply@linkedin.com"
+    max_age_days: 3
+    mark_seen: false
+    limit: 50
+
 filters:
   # Broad set of junior-suitable software roles (matched in title/summary).
   titles_allow:
@@ -96,6 +118,14 @@ filters:
 
   min_match_score: 1
 
+  # Experience handling for a Graduate/Junior search. A role is acted on only if
+  # it EXPLICITLY requires more than max_years_experience (e.g. "5+ years");
+  # generic roles with no stated years are untouched.
+  #   experience_mode: downrank (penalise but keep visible) | filter (exclude) | off
+  max_years_experience: 2
+  experience_mode: "downrank"
+  experience_penalty: 8         # score penalty applied in downrank mode
+
   # Ranking only (does not gate). Each match (in the title + location) adds
   # boost_weight to the score. Tiered so the digest sorts:
   #   center Israel > rest of Israel > remote/other — all remain eligible.
@@ -116,3 +146,4 @@ digest:
   max_jobs: 25
   summary_chars: 280
   timezone: "Asia/Jerusalem"
+  page_size: 1                # jobs per page (1 = one card at a time, Prev/Next to browse)

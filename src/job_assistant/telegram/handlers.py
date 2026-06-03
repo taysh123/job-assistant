@@ -15,6 +15,7 @@ from ..db.repository import Repository
 from ..models import JobStatus
 from .client import TelegramClient
 from .formatting import format_job_card, format_job_list, job_keyboard
+from .pagination import load_digest, render_page
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,9 @@ CALLBACK_STATUS = {
 
 HELP_TEXT = (
     "<b>Job Assistant</b>\n\n"
-    "I send new matching jobs as cards with Save / Ignore / Open / Mark-Applied buttons.\n\n"
+    "Each run I send ONE digest message: a paginated list of new matching jobs "
+    "(use ⬅️ Prev / Next ➡️ to browse). Each job has 💾 Save · 🙈 Ignore · 🔗 Open · "
+    "✅ Mark-Applied — actions keep you on the same page.\n\n"
     "Commands:\n"
     "/today — jobs found in the last 24h\n"
     "/saved — your saved jobs\n"
@@ -45,11 +48,46 @@ def _since_iso(hours: int) -> str:
 
 # --- callbacks -----------------------------------------------------------
 
-def handle_callback(client: TelegramClient, repo: Repository, callback: dict) -> None:
+def _edit_digest_page(client: TelegramClient, repo: Repository, config: Config,
+                      message_id: int, page: int) -> bool:
+    """Re-render and edit a digest message to ``page``. Returns False if unknown."""
+    rendered = render_page(repo, message_id, page, tz=config.digest.timezone)
+    if rendered is None:
+        return False
+    text, keyboard = rendered
+    try:
+        client.edit_message_text(message_id, text, reply_markup=keyboard)
+    except Exception as exc:  # noqa: BLE001 - editing must not break the batch
+        logger.debug("could not edit digest message %s: %s", message_id, exc)
+    return True
+
+
+def handle_callback(client: TelegramClient, repo: Repository, config: Config,
+                    callback: dict) -> None:
     data = callback.get("data", "")
-    action, _, raw_id = data.partition(":")
-    status = CALLBACK_STATUS.get(action)
     cq_id = callback["id"]
+    message_id = (callback.get("message") or {}).get("message_id")
+
+    # Centre label button — nothing to do.
+    if data == "noop":
+        client.answer_callback_query(cq_id)
+        return
+
+    # Pagination: only change the visible page.
+    if data.startswith("page:"):
+        page = int(data.split(":", 1)[1])
+        if message_id and _edit_digest_page(client, repo, config, message_id, page):
+            client.answer_callback_query(cq_id)
+        else:
+            client.answer_callback_query(cq_id, "Digest expired")
+        return
+
+    # Job action: "action:job_id[:page]".
+    parts = data.split(":")
+    action = parts[0]
+    status = CALLBACK_STATUS.get(action)
+    raw_id = parts[1] if len(parts) > 1 else ""
+    page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
 
     if status is None or not raw_id.isdigit():
         client.answer_callback_query(cq_id, "Unknown action")
@@ -64,18 +102,18 @@ def handle_callback(client: TelegramClient, repo: Repository, callback: dict) ->
     job.status = status
     client.answer_callback_query(cq_id, f"Marked {status.value}")
 
-    # Reflect the new state in the original card.
-    message = callback.get("message") or {}
-    message_id = message.get("message_id")
-    if message_id:
-        try:
-            client.edit_message_text(
-                message_id,
-                format_job_card(job),
-                reply_markup=job_keyboard(job),
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("could not edit message %s: %s", message_id, exc)
+    if message_id is None:
+        return
+    # Prefer re-rendering the digest page (keeps the user in place); fall back to
+    # the single-card layout for legacy individual-card messages.
+    if page is not None and _edit_digest_page(client, repo, config, message_id, page):
+        return
+    if load_digest(repo, message_id) and _edit_digest_page(client, repo, config, message_id, page or 1):
+        return
+    try:
+        client.edit_message_text(message_id, format_job_card(job), reply_markup=job_keyboard(job))
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("could not edit message %s: %s", message_id, exc)
 
 
 # --- commands ------------------------------------------------------------
@@ -146,7 +184,7 @@ def handle_command(client: TelegramClient, repo: Repository, config: Config,
 
 def handle_update(client: TelegramClient, repo: Repository, config: Config, update: dict) -> None:
     if "callback_query" in update:
-        handle_callback(client, repo, update["callback_query"])
+        handle_callback(client, repo, config, update["callback_query"])
     elif "message" in update:
         message = update["message"]
         text = message.get("text", "")

@@ -41,7 +41,7 @@ def test_reset_seen_jobs_command(tmp_path, capsys):
 
 def test_collect_dry_run_offline(tmp_path, monkeypatch, capsys):
     # No sources enabled -> no network; exercises the full wiring.
-    monkeypatch.setattr("job_assistant.pipeline.collect_all", lambda cfg: [])
+    monkeypatch.setattr("job_assistant.pipeline.collect_all", lambda cfg, secrets=None: [])
     db = tmp_path / "jobs.db"
     rc = main(["--db", str(db), "--config", "config/config.example.yaml", "collect", "--dry-run"])
     assert rc == 0

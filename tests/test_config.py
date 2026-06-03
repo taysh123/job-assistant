@@ -10,6 +10,8 @@ def test_example_and_active_configs_load():
     for path in ("config/config.example.yaml", "config/config.yaml"):
         cfg = load_config(path)
         assert cfg.filters.remote in {REMOTE_ANY, REMOTE_ONLY, ONSITE_ONLY}
+        # One job per page is the default browsing experience.
+        assert cfg.digest.page_size == 1
 
 
 def test_default_profile_is_graduate_junior_israel():
@@ -28,6 +30,9 @@ def test_default_profile_is_graduate_junior_israel():
     # and remote all stay eligible; center is preferred via ranking only.
     assert cfg.locations_allow == []
     assert "israel" in cfg.boost_keywords  # Israel-wide ranking lift
+    # Experience: junior-friendly, non-destructive default.
+    assert cfg.max_years_experience == 2
+    assert cfg.experience_mode == "downrank"
 
 
 def test_israel_boards_enabled():

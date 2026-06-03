@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from html import escape
+from zoneinfo import ZoneInfo
 
 from ..models import Job, JobStatus
 
@@ -13,6 +14,14 @@ STATUS_LABEL = {
     JobStatus.IGNORED: "🙈 Ignored",
     JobStatus.OPENED: "🔗 Opened",
     JobStatus.APPLIED: "✅ Applied",
+}
+
+# Compact status badge shown after a job has been acted on in the digest.
+STATUS_BADGE = {
+    JobStatus.SAVED: "💾",
+    JobStatus.IGNORED: "🙈",
+    JobStatus.OPENED: "🔗",
+    JobStatus.APPLIED: "✅",
 }
 
 
@@ -27,17 +36,19 @@ def _truncate(text: str, limit: int) -> str:
     return text[: limit - 1].rstrip() + "…"
 
 
-def _reasons_line(job: Job) -> str:
-    if not job.match_reasons:
-        return ""
-    pretty = [r.split(":", 1)[-1] for r in job.match_reasons]
-    # De-duplicate while preserving order.
+def _reasons_list(job: Job) -> list[str]:
+    """Deduplicated, human-readable match reasons in order."""
     seen, out = set(), []
-    for p in pretty:
+    for r in job.match_reasons:
+        p = r.split(":", 1)[-1]
         if p not in seen:
             seen.add(p)
             out.append(p)
-    return ", ".join(out)
+    return out
+
+
+def _reasons_line(job: Job) -> str:
+    return ", ".join(_reasons_list(job))
 
 
 def format_job_card(job: Job, *, summary_chars: int = 280) -> str:
@@ -88,6 +99,82 @@ def job_keyboard(job: Job) -> dict:
             ],
         ]
     }
+
+
+def _fmt_run_time(dt: datetime, tz: str) -> str:
+    try:
+        local = dt.astimezone(ZoneInfo(tz))
+    except Exception:  # noqa: BLE001 - bad tz string falls back to the given dt
+        local = dt
+    return local.strftime("%d %b %Y, %H:%M")
+
+
+def _compact_card(index: int, job: Job, *, summary_chars: int = 110) -> str:
+    """One numbered job entry: at most three short lines (no paragraphs)."""
+    title = escape(_truncate(job.title or "Untitled role", 70))
+    company = escape(job.company or "—")
+    location = escape(_truncate(job.location or "—", 48))
+    source = escape(job.source)
+    badge = f"  {STATUS_BADGE[job.status]}" if job.status in STATUS_BADGE else ""
+
+    # Top few match reasons (location is already shown above, so this stays short);
+    # fall back to a trimmed summary when a job has no reasons.
+    reasons = ", ".join(_reasons_list(job)[:4])
+    detail = reasons or _truncate(job.summary, summary_chars)
+    detail_line = f"   🔎 {escape(_truncate(detail, summary_chars))}" if detail else ""
+
+    lines = [
+        f"<b>{index}. {title}</b> · 🏢 {company}{badge}",
+        f"   📍 {location} · 🌐 {source} · ⭐{job.score}",
+    ]
+    if detail_line:
+        lines.append(detail_line)
+    return "\n".join(lines)
+
+
+def format_digest_page(
+    page_jobs: list[Job],
+    *,
+    page: int,
+    total_pages: int,
+    total_jobs: int,
+    run_dt: datetime,
+    tz: str = "UTC",
+) -> str:
+    """Render one page of the digest as a single compact HTML message."""
+    plural = "job" if total_jobs == 1 else "jobs"
+    # The "N on this page" count is only useful when a page holds several jobs.
+    on_page = f" · {len(page_jobs)} on this page" if len(page_jobs) > 1 else ""
+    header = (
+        f"🔎 <b>{total_jobs} new {plural}</b> · page {page}/{total_pages}{on_page}\n"
+        f"🗓 {_fmt_run_time(run_dt, tz)}"
+    )
+    cards = [_compact_card(i, job) for i, job in enumerate(page_jobs, start=1)]
+    return "\n\n".join([header, *cards])
+
+
+def digest_keyboard(page_jobs: list[Job], *, page: int, total_pages: int) -> dict:
+    """Inline keyboard: one emoji action-row per job + a navigation row.
+
+    Action callbacks carry the page so an action re-renders the *same* page.
+    """
+    rows: list[list[dict]] = []
+    for job in page_jobs:
+        rows.append([
+            {"text": "💾", "callback_data": f"save:{job.id}:{page}"},
+            {"text": "🙈", "callback_data": f"ignore:{job.id}:{page}"},
+            {"text": "🔗 Open", "url": job.url},
+            {"text": "✅", "callback_data": f"applied:{job.id}:{page}"},
+        ])
+
+    nav: list[dict] = []
+    if page > 1:
+        nav.append({"text": "⬅️ Prev", "callback_data": f"page:{page - 1}"})
+    nav.append({"text": f"Page {page}/{total_pages}", "callback_data": "noop"})
+    if page < total_pages:
+        nav.append({"text": "Next ➡️", "callback_data": f"page:{page + 1}"})
+    rows.append(nav)
+    return {"inline_keyboard": rows}
 
 
 def format_digest_header(count: int) -> str:

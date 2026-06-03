@@ -16,10 +16,10 @@ from .telegram.digest import send_digest
 logger = logging.getLogger(__name__)
 
 
-def collect_all(config: Config) -> list[Job]:
+def collect_all(config: Config, secrets: Secrets | None = None) -> list[Job]:
     """Run every enabled source, aggregating results. Sources never raise."""
     jobs: list[Job] = []
-    for source in build_sources(config):
+    for source in build_sources(config, secrets):
         found = source.collect()
         logger.info("source %s returned %d jobs", source.name, len(found))
         jobs.extend(found)
@@ -33,7 +33,7 @@ def run_collection(config: Config, secrets: Secrets, repo: Repository,
     When ``send`` is False (dry-run) jobs are still filtered, deduped and
     persisted but nothing is sent to Telegram.
     """
-    raw = collect_all(config)
+    raw = collect_all(config, secrets)
     matched = FilterEngine(config.filters).filter(raw)
     new_jobs = filter_unseen(matched, repo)
     inserted = repo.insert_new_jobs(new_jobs)
@@ -46,7 +46,12 @@ def run_collection(config: Config, secrets: Secrets, repo: Repository,
             client = TelegramClient(secrets.telegram_bot_token, secrets.telegram_chat_id)
             # Respect the digest size cap; highest-scoring first.
             to_send = inserted[: config.digest.max_jobs]
-            sent = send_digest(client, repo, to_send, summary_chars=config.digest.summary_chars)
+            sent = send_digest(
+                client, repo, to_send,
+                summary_chars=config.digest.summary_chars,
+                page_size=config.digest.page_size,
+                tz=config.digest.timezone,
+            )
     elif send and not inserted:
         if secrets.is_configured:
             client = TelegramClient(secrets.telegram_bot_token, secrets.telegram_chat_id)

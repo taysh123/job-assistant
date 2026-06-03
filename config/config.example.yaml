@@ -61,6 +61,31 @@ sources:
     boards:
       - "logz"
 
+  # Comeet ATS — widely used by Israeli companies. Public Careers API; opt-in.
+  # Find each company's uid + token on the Comeet side under
+  # Settings -> Careers Website -> Careers API, then add an entry per company.
+  # A wrong/stale uid or token is skipped safely (logged, never fatal).
+  comeet:
+    enabled: false
+    companies: []
+      # - { name: "Example Co", uid: "30.005", token: "YOUR_TOKEN" }
+
+  # LinkedIn coverage via Job-Alert EMAIL ingestion — NO scraping or login.
+  # How it works: you create Job Alerts on LinkedIn → LinkedIn emails you matching
+  # jobs → this source reads your inbox over IMAP and parses them.
+  # To enable: set IMAP_USERNAME / IMAP_PASSWORD secrets (Gmail needs an App
+  # Password), then enabled: true. Skipped automatically if creds are missing.
+  linkedin:
+    enabled: false
+    imap_host: "imap.gmail.com"   # your mail provider's IMAP host
+    imap_folder: "INBOX"          # folder/label the alerts land in
+    senders:                       # only read mail from these LinkedIn addresses
+      - "jobalerts-noreply@linkedin.com"
+      - "jobs-noreply@linkedin.com"
+    max_age_days: 3                # only consider alerts from the last N days
+    mark_seen: false               # mark processed alert emails as read
+    limit: 50                      # max emails to scan per sender
+
 filters:
   # A job is kept if it matches >= min_match_score allow terms (title/summary),
   # has no deny term, and passes the remote/location/seniority gates.
@@ -106,6 +131,14 @@ filters:
 
   min_match_score: 1
 
+  # Experience handling (junior-friendly). Acted on ONLY when a role explicitly
+  # requires more than max_years_experience (e.g. "5+ years", "senior-level");
+  # roles with no stated years are never affected.
+  #   experience_mode: downrank (penalise, keep visible) | filter (exclude) | off
+  max_years_experience: 2
+  experience_mode: "downrank"
+  experience_penalty: 8         # score penalty used in downrank mode
+
   # Ranking only (does not gate). Each match (in the title + LOCATION) adds
   # boost_weight to the score. Tiered so the digest sorts:
   #   center Israel > rest of Israel > remote/other — all remain eligible.
@@ -123,6 +156,7 @@ filters:
   boost_weight: 3
 
 digest:
-  max_jobs: 25                # cap cards per run (highest-ranked first)
+  max_jobs: 25                # cap jobs per run (highest-ranked first)
   summary_chars: 280          # truncate posting summary to this length
   timezone: "Asia/Jerusalem"
+  page_size: 1                # jobs per page (1 = one card at a time, Prev/Next to browse)

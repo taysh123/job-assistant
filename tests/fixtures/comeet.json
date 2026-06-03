@@ -1,0 +1,28 @@
+[
+  {
+    "uid": "F1.B67",
+    "name": "AI Engineer",
+    "company_name": "Spark Hire",
+    "location": {"name": "Tel Aviv, Israel", "country": "IL", "city": "Tel Aviv-Yafo", "is_remote": true},
+    "url_comeet_hosted_page": "https://www.comeet.com/jobs/spark-hire/30.005/ai-engineer/F1.B67",
+    "url_active_page": "https://www.comeet.com/jobs/spark-hire/30.005/ai-engineer/F1.B67",
+    "workplace_type": "Remote",
+    "time_updated": "2026-06-03T13:18:59Z",
+    "details": [
+      {"name": "Description", "value": "<p>Build <strong>practical AI</strong> features in Python.</p>"}
+    ]
+  },
+  {
+    "uid": "A2.C90",
+    "name": "Backend Software Engineer",
+    "company_name": "Spark Hire",
+    "location": {"name": "Haifa, Israel", "country": "IL", "city": "Haifa", "is_remote": false},
+    "url_comeet_hosted_page": "https://www.comeet.com/jobs/spark-hire/30.005/backend/A2.C90",
+    "url_active_page": "https://www.comeet.com/jobs/spark-hire/30.005/backend/A2.C90",
+    "workplace_type": "On-site",
+    "time_updated": "2026-06-02T09:00:00Z",
+    "details": [
+      {"name": "Description", "value": "<p>Java &amp; SQL backend role. Requires 5+ years of experience.</p>"}
+    ]
+  }
+]
