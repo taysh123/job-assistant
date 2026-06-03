@@ -30,4 +30,5 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m job_assistant.cli collect
       - name: Commit database
-        run: bash .github/scripts/commit-db.sh "chore(data): collect"
+        run: |
+          bash .github/scripts/commit-db.sh "chore(data): collect"

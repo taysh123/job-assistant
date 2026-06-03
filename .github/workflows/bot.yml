@@ -29,4 +29,5 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m job_assistant.cli process-updates
       - name: Commit database
-        run: bash .github/scripts/commit-db.sh "chore(data): bot updates"
+        run: |
+          bash .github/scripts/commit-db.sh "chore(data): bot updates"
