@@ -116,13 +116,21 @@ pytest                                          # run the tests
 
 Preferences are non-secret and committed. Secrets stay in env / Actions secrets.
 
-- **sources** — toggle each source; list Greenhouse/Lever company slugs and WWR feed slugs.
+The shipped defaults are tuned for a **Graduate / Junior software search in Israel**
+(center-weighted, open to remote/hybrid/on-site, no relocation) — edit for your own profile.
+
+- **sources** — toggle each source; the Greenhouse/Lever lists ship with a verified
+  starter set of Israeli companies (add/remove slugs freely; WWR uses feed slugs).
 - **filters**
   - `titles_allow` / `keywords_allow` — a job needs ≥ `min_match_score` hits (title or summary).
   - `keywords_deny` / `seniority_deny` / `locations_deny` — hard exclusions.
   - `remote`: `any` | `remote_only` | `onsite_only`.
-  - `locations_allow` — applied to on-site jobs only (remote jobs always pass).
-  - `seniority_allow` — optional gate matched against the title.
+  - `locations_allow` — optional HARD geo filter for on-site jobs (remote always passes);
+    empty by default so all Israeli locations + remote stay eligible (center handled by ranking).
+  - `seniority_allow` — optional gate matched against the title (left empty by default).
+  - `boost_keywords` / `boost_weight` — **ranking only**: matches (in title + location)
+    add weight so junior + Israel/center roles sort to the top, without excluding any
+    Israeli location or remote.
 - **digest** — `max_jobs` per run, `summary_chars`, `timezone`.
 
 See `config/config.example.yaml` for an annotated template.

@@ -75,6 +75,12 @@ class FiltersConfig(BaseModel):
     # Minimum number of allow-list hits required to keep a job.
     min_match_score: int = 1
 
+    # Ranking only: jobs matching these terms (in title/summary/location) get
+    # `boost_weight` added to their score so they sort to the top of the digest.
+    # Boost never lets a job bypass the allow gate; empty list = no effect.
+    boost_keywords: list[str] = Field(default_factory=list)
+    boost_weight: int = 3
+
 
 class DigestConfig(BaseModel):
     max_jobs: int = 25

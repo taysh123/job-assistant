@@ -93,6 +93,68 @@ def test_filter_sorts_by_score_desc():
     assert [j.external_id for j in result] == ["b", "a"]
 
 
+def test_keyword_hits_are_capped_so_verbose_jds_dont_dominate():
+    # 6 keyword hits, but the base keyword contribution is capped at 4.
+    e = engine(keywords_allow=["python", "java", "react", "node", "sql", "css"])
+    job = e.evaluate(make_job(title="Role", summary="python java react node sql css"))
+    assert job.score == 4  # capped, not 6
+    # A boosted Israel/junior job with fewer keywords still wins.
+    e2 = engine(
+        keywords_allow=["python", "java", "react", "node", "sql", "css"],
+        boost_keywords=["tel aviv", "junior"], boost_weight=3,
+    )
+    verbose = make_job(external_id="v", title="Engineer", summary="python java react node sql css", location="Remote")
+    israeli = make_job(external_id="il", title="Junior Developer", summary="python", location="Tel Aviv, Israel")
+    ranked = e2.filter([verbose, israeli])
+    assert ranked[0].external_id == "il"
+
+
+def test_boost_adds_weight_and_reason():
+    e = engine(keywords_allow=["engineer"], boost_keywords=["junior"], boost_weight=3)
+    job = e.evaluate(make_job(title="Junior Engineer", summary=""))
+    assert job is not None
+    # 1 base hit (engineer) + boost 3 = 4.
+    assert job.score == 4
+    assert "boost:junior" in job.match_reasons
+
+
+def test_boost_matches_location_field():
+    e = engine(keywords_allow=["engineer"], boost_keywords=["tel aviv"], boost_weight=3)
+    job = e.evaluate(make_job(title="Software Engineer", summary="", location="Tel Aviv, Israel"))
+    assert job is not None
+    assert "boost:tel aviv" in job.match_reasons
+    assert job.score == 4  # 1 (engineer) + 3
+
+
+def test_boost_ranks_israel_junior_above_generic():
+    e = engine(
+        titles_allow=["engineer"],
+        keywords_allow=["python", "react", "node", "api"],
+        boost_keywords=["junior", "tel aviv"],
+        boost_weight=3,
+    )
+    jobs = [
+        # Tech-heavy generic remote job: 1 title + 4 keywords = 5.
+        make_job(external_id="generic", title="Engineer", summary="python react node api", remote=True),
+        # Israel junior job: 1 title + boost(junior)+boost(tel aviv) = 1 + 6 = 7.
+        make_job(external_id="il", title="Junior Engineer", summary="", location="Tel Aviv", remote=False),
+    ]
+    result = e.filter(jobs)
+    assert [j.external_id for j in result] == ["il", "generic"]
+
+
+def test_boost_does_not_bypass_allow_gate():
+    # A job that matches only a boost term (no allow hit) is still excluded.
+    e = engine(keywords_allow=["python"], boost_keywords=["junior"], min_match_score=1)
+    assert e.evaluate(make_job(title="Junior Marketing Lead", summary="seo")) is None
+
+
+def test_no_boost_keywords_keeps_scores_unchanged():
+    e = engine(keywords_allow=["python", "backend"])
+    job = e.evaluate(make_job(title="Backend", summary="python"))
+    assert job.score == 2  # unchanged when boost not configured
+
+
 def test_dedup_in_batch():
     jobs = [make_job(external_id="1"), make_job(external_id="1"), make_job(external_id="2")]
     assert [j.external_id for j in dedup_in_batch(jobs)] == ["1", "2"]

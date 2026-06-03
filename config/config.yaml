@@ -1,9 +1,13 @@
-# Active preferences (copied from config.example.yaml). Edit to taste.
+# Active preferences — tuned for a Graduate / Junior software job search in
+# Israel (center-weighted), open to remote/hybrid/on-site, no relocation.
 # Secrets live in environment variables / GitHub Actions secrets, not here.
+# See config.example.yaml for full documentation of every field.
 
 sources:
   remotive:
     enabled: true
+    # NOTE: Remotive's public API returns one general feed; the category param
+    # is effectively ignored, so listing more categories has no effect.
     categories: ["software-dev"]
     search: ""
     limit: 100
@@ -13,27 +17,102 @@ sources:
     feeds:
       - "remote-programming-jobs"
       - "remote-full-stack-programming-jobs"
+      - "remote-back-end-programming-jobs"
+      - "remote-front-end-programming-jobs"
 
+  # Israeli tech companies with public Greenhouse boards (verified to return
+  # jobs). Add/remove company slugs freely — a wrong/stale slug is skipped
+  # safely. Slug = the token in https://boards.greenhouse.io/<slug>
   greenhouse:
-    enabled: false
-    boards: []
+    enabled: true
+    boards:
+      - "via"
+      - "catonetworks"
+      - "jfrog"
+      - "payoneer"
+      - "similarweb"
+      - "taboola"
+      - "fireblocks"
+      - "forter"
+      - "axonius"
+      - "riskified"
+      - "transmitsecurity"
+      - "yotpo"
+      - "augury"
+      - "melio"
+      - "orcasecurity"
+      - "saltsecurity"
+      - "lightricks"
+      - "bigid"
+      - "pagaya"
+      - "bringg"
+      - "cybereason"
 
+  # Israeli companies with public Lever boards. Slug = https://jobs.lever.co/<slug>
   lever:
-    enabled: false
-    boards: []
+    enabled: true
+    boards:
+      - "logz"
 
 filters:
-  titles_allow: ["engineer", "developer", "backend", "full stack", "python"]
-  keywords_allow: ["python", "backend", "api", "django", "fastapi"]
-  keywords_deny: ["unpaid", "internship", "crypto", "web3"]
+  # Broad set of junior-suitable software roles (matched in title/summary).
+  titles_allow:
+    ["engineer", "developer", "programmer", "software", "full stack", "fullstack",
+     "full-stack", "front end", "frontend", "front-end", "back end", "backend",
+     "back-end", "web", "mobile", "android", "ios", "qa", "automation", "test",
+     "devops", "sre", "data analyst", "data engineer", "machine learning",
+     "data scientist"]
+
+  # Junior/grad terms + core entry-level tech. Drives the min_match_score gate.
+  keywords_allow:
+    ["junior", "graduate", "entry level", "entry-level", "new grad", "student",
+     "python", "java", "javascript", "typescript", "react", "node", "c#", "sql",
+     "html", "css"]
+
+  # No topic exclusions for now (openness over a narrow filter).
+  keywords_deny: []
+
+  # Open to remote, hybrid, and on-site.
   remote: "any"
+
+  # No hard geographic filter: ALL Israeli locations (Tel Aviv, Haifa, Jerusalem,
+  # Beer Sheva, the North, ...) AND remote jobs stay eligible. Center is preferred
+  # via ranking (boost_keywords), not filtering. Add entries here only if you ever
+  # want to HARD-restrict on-site locations.
   locations_allow: []
   locations_deny: []
+
+  # Do NOT hard-gate by title seniority — that would drop generic "Software
+  # Engineer" roles that may well be junior. Ranking + seniority_deny handle it.
   seniority_allow: []
-  seniority_deny: ["principal", "staff", "vp", "head of"]
+
+  # Drop clearly-not-junior titles (keeps the search realistic, including for AI
+  # roles) without excluding whole topics.
+  seniority_deny:
+    ["senior", "sr.", "staff", "principal", "lead", "head of", "vice president",
+     "director", "manager", "architect", "expert", "experienced", "5+ years",
+     "6+ years", "7+ years", "8+ years", "9+ years", "10+ years",
+     "research scientist", "phd", "fellow", " ii", " iii", " iv"]
+
   min_match_score: 1
+
+  # Ranking only (does not gate). Each match (in the title + location) adds
+  # boost_weight to the score. Tiered so the digest sorts:
+  #   center Israel > rest of Israel > remote/other — all remain eligible.
+  # "israel" lifts every Israeli role; the center cities give Tel Aviv / Gush Dan
+  # / Central District an extra edge. Junior/grad terms lift entry-level roles.
+  boost_keywords:
+    ["junior", "graduate", "entry level", "entry-level", "new grad", "student",
+     "intern",
+     "israel",
+     "tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv district", "gush dan",
+     "ramat gan", "givatayim", "bnei brak", "holon", "bat yam", "herzliya",
+     "petah tikva", "petach tikva", "ra'anana", "raanana", "kfar saba",
+     "hod hasharon", "rosh haayin", "or yehuda", "rishon lezion", "rishon",
+     "rehovot", "ness ziona", "nes ziona", "netanya", "central district", "merkaz"]
+  boost_weight: 3
 
 digest:
   max_jobs: 25
   summary_chars: 280
-  timezone: "UTC"
+  timezone: "Asia/Jerusalem"

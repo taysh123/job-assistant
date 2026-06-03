@@ -1,54 +1,128 @@
-# Job Assistant preferences.
+# Job Assistant preferences — annotated template.
 # Copy to config/config.yaml and edit. Secrets (Telegram token/chat id) go in
 # environment variables / GitHub Actions secrets, NOT here.
+#
+# Defaults below are tuned for a GRADUATE / JUNIOR software job search in
+# ISRAEL (center-weighted), open to remote / hybrid / on-site, no relocation.
+# Adjust freely for your own profile.
 
 sources:
   remotive:
     enabled: true
-    # Remotive category slugs. "software-dev" is the main engineering category.
+    # Remotive's public API returns a single general feed — the category param
+    # is effectively ignored, so adding categories does not broaden results.
     categories: ["software-dev"]
     search: ""        # optional free-text query
     limit: 100
 
   weworkremotely:
     enabled: true
-    # RSS feed slugs from https://weworkremotely.com/categories
+    # RSS feed slugs from https://weworkremotely.com/categories (these DO differ).
     feeds:
       - "remote-programming-jobs"
       - "remote-full-stack-programming-jobs"
+      - "remote-back-end-programming-jobs"
+      - "remote-front-end-programming-jobs"
 
+  # Per-company public job boards — the reliable way to get ISRAEL-based roles
+  # (remote sources above are worldwide). Add or remove company slugs anytime;
+  # an unknown/stale slug is skipped safely (logged, never fatal).
   greenhouse:
-    enabled: false
-    # Board tokens = the company slug in a Greenhouse board URL, e.g.
-    # https://boards.greenhouse.io/<token>
-    boards: []        # e.g. ["stripe", "figma"]
+    enabled: true
+    # Slug = the token in https://boards.greenhouse.io/<slug>. The list below is
+    # a verified starter set of Israeli tech companies — extend it with your own
+    # targets (check the company's careers page for a Greenhouse board).
+    boards:
+      - "via"
+      - "catonetworks"
+      - "jfrog"
+      - "payoneer"
+      - "similarweb"
+      - "taboola"
+      - "fireblocks"
+      - "forter"
+      - "axonius"
+      - "riskified"
+      - "transmitsecurity"
+      - "yotpo"
+      - "augury"
+      - "melio"
+      - "orcasecurity"
+      - "saltsecurity"
+      - "lightricks"
+      - "bigid"
+      - "pagaya"
+      - "bringg"
+      - "cybereason"
 
   lever:
-    enabled: false
-    # Company slug in a Lever URL, e.g. https://jobs.lever.co/<slug>
-    boards: []        # e.g. ["netflix"]
+    enabled: true
+    # Slug = https://jobs.lever.co/<slug>
+    boards:
+      - "logz"
 
 filters:
-  # A job is kept if it matches >= min_match_score allow terms (in title or
-  # summary), has no deny term, and passes the remote/location/seniority gates.
-  titles_allow: ["engineer", "developer", "backend", "full stack", "python"]
-  keywords_allow: ["python", "backend", "api", "django", "fastapi"]
-  keywords_deny: ["unpaid", "internship", "crypto", "web3"]
+  # A job is kept if it matches >= min_match_score allow terms (title/summary),
+  # has no deny term, and passes the remote/location/seniority gates.
+
+  # Broad set of junior-suitable software roles.
+  titles_allow:
+    ["engineer", "developer", "programmer", "software", "full stack", "fullstack",
+     "full-stack", "front end", "frontend", "front-end", "back end", "backend",
+     "back-end", "web", "mobile", "android", "ios", "qa", "automation", "test",
+     "devops", "sre", "data analyst", "data engineer", "machine learning",
+     "data scientist"]
+
+  # Junior/grad terms + core entry-level tech.
+  keywords_allow:
+    ["junior", "graduate", "entry level", "entry-level", "new grad", "student",
+     "python", "java", "javascript", "typescript", "react", "node", "c#", "sql",
+     "html", "css"]
+
+  # Topic exclusions (kept empty for openness). e.g. ["crypto", "unpaid"]
+  keywords_deny: []
 
   # any | remote_only | onsite_only
   remote: "any"
 
-  # For on-site jobs, restrict to these locations (remote jobs always pass).
-  locations_allow: []         # e.g. ["berlin", "germany", "remote"]
+  # HARD geographic filter for on-site jobs (remote always passes). Empty = no
+  # geo filter: every Israeli location (Haifa, Jerusalem, Beer Sheva, North, ...)
+  # and remote stay eligible; center is prioritized by ranking, not filtering.
+  # Populate this only to hard-restrict on-site roles, e.g. ["israel"].
+  locations_allow: []
   locations_deny: []          # e.g. ["india"]
 
-  # Optional seniority gating (matched against the title).
-  seniority_allow: []         # e.g. ["junior", "mid", "intermediate"]
-  seniority_deny: ["principal", "staff", "vp", "head of"]
+  # Leave empty: a title-based allow gate would drop generic "Software Engineer"
+  # roles that may be junior. e.g. ["junior", "graduate"]
+  seniority_allow: []
+
+  # Drop clearly-senior titles (matched against the title). Keeps the search
+  # realistic for a new grad — including for AI/ML roles — without topic blocks.
+  seniority_deny:
+    ["senior", "sr.", "staff", "principal", "lead", "head of", "vice president",
+     "director", "manager", "architect", "expert", "experienced", "5+ years",
+     "6+ years", "7+ years", "8+ years", "9+ years", "10+ years",
+     "research scientist", "phd", "fellow", " ii", " iii", " iv"]
 
   min_match_score: 1
 
+  # Ranking only (does not gate). Each match (in the title + LOCATION) adds
+  # boost_weight to the score. Tiered so the digest sorts:
+  #   center Israel > rest of Israel > remote/other — all remain eligible.
+  # "israel" lifts every Israeli role; center cities give Tel Aviv / Gush Dan /
+  # Central District an extra edge; junior/grad terms lift entry-level roles.
+  boost_keywords:
+    ["junior", "graduate", "entry level", "entry-level", "new grad", "student",
+     "intern",
+     "israel",
+     "tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv district", "gush dan",
+     "ramat gan", "givatayim", "bnei brak", "holon", "bat yam", "herzliya",
+     "petah tikva", "petach tikva", "ra'anana", "raanana", "kfar saba",
+     "hod hasharon", "rosh haayin", "or yehuda", "rishon lezion", "rishon",
+     "rehovot", "ness ziona", "nes ziona", "netanya", "central district", "merkaz"]
+  boost_weight: 3
+
 digest:
-  max_jobs: 25                # cap cards per run
+  max_jobs: 25                # cap cards per run (highest-ranked first)
   summary_chars: 280          # truncate posting summary to this length
-  timezone: "UTC"
+  timezone: "Asia/Jerusalem"

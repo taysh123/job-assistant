@@ -18,9 +18,20 @@ REMOTE_ANY = "any"
 REMOTE_ONLY = "remote_only"
 ONSITE_ONLY = "onsite_only"
 
+# Cap on how much keyword (summary) hits contribute to the base relevance score,
+# so a keyword-stuffed description can't outrank the location/junior boost.
+KEYWORD_SCORE_CAP = 4
+
 
 def _haystack(job: Job) -> str:
     return f"{job.title}\n{job.summary}".lower()
+
+
+def _boost_haystack(job: Job) -> str:
+    # Title + location ONLY (not the summary): boost should reflect the role and
+    # where it actually is. Excluding the description avoids company boilerplate
+    # (e.g. an Israeli firm's "HQ in Tel Aviv") inflating foreign-located jobs.
+    return f"{job.title}\n{job.location}".lower()
 
 
 def _contains_any(text: str, needles: list[str]) -> list[str]:
@@ -54,23 +65,30 @@ class FilterEngine:
         if not self._passes_seniority(job):
             return None
 
-        # 3. Positive matches + score.
-        reasons: list[str] = []
-        for hit in _contains_any(job.title, cfg.titles_allow):
-            reasons.append(f"title:{hit}")
-        for hit in _contains_any(haystack, cfg.keywords_allow):
-            reasons.append(f"keyword:{hit}")
+        # 3. Positive matches + score. Title hits count fully (titles are short
+        # and meaningful); keyword/summary hits are capped so a keyword-stuffed
+        # description can't dominate the location/junior boost applied below.
+        title_hits = _contains_any(job.title, cfg.titles_allow)
+        keyword_hits = _contains_any(haystack, cfg.keywords_allow)
+        reasons = [f"title:{h}" for h in title_hits] + [f"keyword:{h}" for h in keyword_hits]
 
         # With no allow-list configured, everything that passed the gates is kept.
         no_allowlist = not (cfg.titles_allow or cfg.keywords_allow)
-        score = len(reasons)
-        if not no_allowlist and score < cfg.min_match_score:
+        base = len(title_hits) + min(len(keyword_hits), KEYWORD_SCORE_CAP)
+        if not no_allowlist and base < cfg.min_match_score:
             return None
+
+        score = base if not no_allowlist else max(base, 1)
+
+        # Ranking-only boost (does not affect the gate above).
+        for hit in _contains_any(_boost_haystack(job), cfg.boost_keywords):
+            score += cfg.boost_weight
+            reasons.append(f"boost:{hit}")
 
         if job.remote:
             reasons.append("remote")
 
-        job.score = score if not no_allowlist else max(score, 1)
+        job.score = score
         job.match_reasons = reasons
         return job
 
