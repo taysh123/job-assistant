@@ -52,13 +52,25 @@ def render_page(
     *,
     run_dt: datetime | None = None,
     tz: str = "UTC",
+    page_size: int | None = None,
 ) -> tuple[str, dict] | None:
-    """Build (text, keyboard) for ``page`` of the digest, or None if unknown."""
+    """Build (text, keyboard) for ``page`` of the digest, or None if unknown.
+
+    If the digest's ``bot_state`` row is missing (e.g. a dropped commit between
+    cron runs), rebuild the job list from each job's persisted
+    ``telegram_message_id`` so Prev/Next still works. ``page_size`` (the caller's
+    configured value) is used for that reconstruction.
+    """
     state = load_digest(repo, message_id)
-    if not state:
-        return None
-    job_ids: list[int] = state["job_ids"]
-    page_size: int = state.get("page_size", DEFAULT_PAGE_SIZE)
+    if state:
+        job_ids = state["job_ids"]
+        page_size = state.get("page_size", DEFAULT_PAGE_SIZE)
+    else:
+        # Self-heal: reconstruct the ordered list from the linked job rows.
+        job_ids = repo.list_ids_by_message_id(message_id)
+        if not job_ids:
+            return None
+        page_size = page_size or DEFAULT_PAGE_SIZE
 
     ids_on_page, total_pages = page_slice(job_ids, page, page_size)
     page = max(1, min(page, total_pages))
@@ -66,7 +78,7 @@ def render_page(
 
     # Timestamp shown in the header: explicit run_dt, else the digest's creation time.
     run_at = run_dt
-    if run_at is None and state.get("created_at"):
+    if run_at is None and state and state.get("created_at"):
         run_at = datetime.fromisoformat(state["created_at"])
     if run_at is None:
         run_at = datetime.now(timezone.utc)

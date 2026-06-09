@@ -171,7 +171,9 @@ The shipped defaults are tuned for a **Graduate / Junior software search in Isra
   source; off by default) are optional — see Setup §4.
 - **filters**
   - `titles_allow` / `keywords_allow` — a job needs ≥ `min_match_score` hits (title or summary).
-  - `keywords_deny` / `seniority_deny` / `locations_deny` — hard exclusions.
+  - `keywords_deny` / `seniority_deny` / `titles_deny` / `locations_deny` — hard exclusions.
+    `titles_deny` is title-only and drops non-dev role types that share a software
+    word (e.g. "sales/support/solutions engineer", recruiter, account/HR/marketing).
   - `remote`: `any` | `remote_only` | `onsite_only`.
   - `locations_allow` — optional HARD geo filter for on-site jobs (remote always passes);
     empty by default so all Israeli locations + remote stay eligible (center handled by ranking).
@@ -185,8 +187,8 @@ The shipped defaults are tuned for a **Graduate / Junior software search in Isra
 
 ### Experience detection
 Roles that **explicitly** require more years than `max_years_experience` (default `2`) are
-handled per `experience_mode`: `downrank` (default — a `experience_penalty` is subtracted so the
-role sinks but stays visible), `filter` (exclude), or `off`. Detection is tied to experience/
+handled per `experience_mode`: `filter` (the shipped default — exclude the role), `downrank`
+(a `experience_penalty` is subtracted so the role sinks but stays visible), or `off`. Detection is tied to experience/
 requirement context — it catches `"5+ years"`, `"minimum 3 years"`, `"at least 4 years"`,
 `"3-5 years of experience"` (lower bound), and `"senior-level"`, while a plain `"Software
 Engineer"` or `"0–2 years"` role is **never** affected. This trims senior roles that slip past

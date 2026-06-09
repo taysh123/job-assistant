@@ -79,3 +79,44 @@ def test_nav_on_unknown_message_reports_expired(repo):
     handle_update(client, repo, Config(), _cb(4, "page:2", 999999))
     assert client.answered == ["c4"]
     assert client.edits == []
+
+
+def test_pagination_self_heals_when_digest_state_lost(repo):
+    """If the digest:{mid} bot_state row is gone (e.g. a dropped commit), paging
+    rebuilds the job list from each job's persisted telegram_message_id instead
+    of dead-ending on 'Digest expired'. This is what makes Prev/Next robust."""
+    client = FakeTelegramClient()
+    send_digest(client, repo, _seed(repo, 3), page_size=1)  # 3 single-job pages
+    mid = client.sent[0]["message_id"]
+    # Simulate the lost cross-run state.
+    repo.conn.execute("DELETE FROM bot_state WHERE key = ?", (f"digest:{mid}",))
+    repo.conn.commit()
+    client.edits.clear()
+    handle_update(client, repo, Config(), _cb(5, "page:2", mid))
+    assert client.answered == ["c5"]
+    assert client.edits and client.edits[-1]["message_id"] == mid
+    assert "page 2/3" in client.edits[-1]["text"]
+
+
+def test_digest_paginates_across_separate_repository_instances(tmp_path):
+    """A digest written by one process (collect) must be paginable by a later,
+    separate process (bot) reading the committed single-file DB."""
+    from job_assistant.db.repository import Repository
+
+    db = tmp_path / "jobs.db"
+    repo_a = Repository(str(db))
+    repo_a.init_schema()
+    jobs = repo_a.insert_new_jobs(
+        [make_job(external_id=str(i), title=f"Role {i}") for i in range(7)]
+    )
+    client_a = FakeTelegramClient()
+    send_digest(client_a, repo_a, jobs, page_size=1)
+    mid = client_a.sent[0]["message_id"]
+    repo_a.close()  # commit boundary between the two cron runs
+
+    repo_b = Repository(str(db))
+    repo_b.init_schema()
+    client_b = FakeTelegramClient()
+    handle_update(client_b, repo_b, Config(), _cb(1, "page:2", mid))
+    repo_b.close()
+    assert client_b.edits and "page 2/7" in client_b.edits[-1]["text"]

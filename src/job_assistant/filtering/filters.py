@@ -55,7 +55,11 @@ class FilterEngine:
             return None
         if _contains_any(job.title, cfg.seniority_deny):
             return None
-        if _contains_any(job.location, cfg.locations_deny):
+        if _contains_any(job.title, cfg.titles_deny):
+            return None
+        # Geo deny is for on-site roles only: remote jobs are location-agnostic
+        # (so a foreign country/city list never drops a remote opportunity).
+        if not job.remote and _contains_any(job.location, cfg.locations_deny):
             return None
 
         # 2. Remote / location gates.

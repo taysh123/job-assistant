@@ -110,12 +110,28 @@ filters:
   # any | remote_only | onsite_only
   remote: "any"
 
-  # HARD geographic filter for on-site jobs (remote always passes). Empty = no
-  # geo filter: every Israeli location (Haifa, Jerusalem, Beer Sheva, North, ...)
-  # and remote stay eligible; center is prioritized by ranking, not filtering.
-  # Populate this only to hard-restrict on-site roles, e.g. ["israel"].
+  # HARD geographic ALLOW filter for on-site jobs (remote always passes). Empty =
+  # no allow filter: every Israeli location (Haifa, Jerusalem, Beer Sheva, North,
+  # ...) and remote stay eligible; center is prioritized by ranking, not filtering.
+  # Prefer leaving this empty — an allow-list risks dropping valid Israeli towns it
+  # forgets to list (e.g. a job tagged only "TLV").
   locations_allow: []
-  locations_deny: []          # e.g. ["india"]
+
+  # locations_deny is scoped to ON-SITE roles only (remote jobs are never dropped).
+  # Use it to remove on-site roles abroad for an Israel-wide + remote search. Never
+  # list Israeli locations here. Extend if foreign on-site noise slips through.
+  locations_deny:
+    ["india", "bangalore", "bengaluru", "gurugram", "gurgaon", "hyderabad", "pune",
+     "mumbai", "delhi", "noida", "china", "beijing", "shanghai", "guangzhou",
+     "shenzhen", "hong kong", "japan", "tokyo", "singapore", "hungary", "budapest",
+     "bulgaria", "sofia", "czech", "prague", "poland", "warsaw", "krakow", "romania",
+     "bucharest", "ukraine", "kyiv", "kiev", "portugal", "lisbon", "porto", "spain",
+     "madrid", "barcelona", "germany", "berlin", "munich", "france", "paris",
+     "united kingdom", "london", "england", "manchester", "ireland", "dublin",
+     "netherlands", "amsterdam", "united states", "new york", "san francisco",
+     "austin", "boston", "seattle", "canada", "toronto", "vancouver", "brazil",
+     "sao paulo", "mexico", "argentina", "buenos aires", "colombia", "bogota",
+     "australia", "sydney", "melbourne"]
 
   # Leave empty: a title-based allow gate would drop generic "Software Engineer"
   # roles that may be junior. e.g. ["junior", "graduate"]
@@ -129,14 +145,30 @@ filters:
      "6+ years", "7+ years", "8+ years", "9+ years", "10+ years",
      "research scientist", "phd", "fellow", " ii", " iii", " iv"]
 
+  # Title-only exclusion of role TYPES that share a software word but aren't a
+  # software-developer first job (sales/support/solutions "engineer", recruiter,
+  # account/HR/marketing). Matched on the title only, so a dev role that merely
+  # mentions the word in its summary stays. (Manager/director titles are already
+  # handled by seniority_deny.) Edit freely for your own profile.
+  titles_deny:
+    ["sales", "support engineer", "solutions engineer", "solution engineer",
+     "presales", "pre-sales", "implementation", "customer engineer",
+     "customer success", "account manager", "account executive", "recruit",
+     "talent acquisition", "human resources", "marketing",
+     "business development", "professional services", "field engineer",
+     "helpdesk", "help desk", "service desk", "it support", "support specialist",
+     "technical support"]
+
   min_match_score: 1
 
   # Experience handling (junior-friendly). Acted on ONLY when a role explicitly
   # requires more than max_years_experience (e.g. "5+ years", "senior-level");
   # roles with no stated years are never affected.
   #   experience_mode: downrank (penalise, keep visible) | filter (exclude) | off
+  # "filter" suits a no-experience first-job search (default here); switch to
+  # "downrank" to keep over-experienced roles visible at the bottom instead.
   max_years_experience: 2
-  experience_mode: "downrank"
+  experience_mode: "filter"
   experience_penalty: 8         # score penalty used in downrank mode
 
   # Ranking only (does not gate). Each match (in the title + LOCATION) adds

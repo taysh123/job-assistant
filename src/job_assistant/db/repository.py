@@ -59,6 +59,13 @@ class Repository:
         self.conn.commit()
 
     def close(self) -> None:
+        # Fold the WAL back into the main file before closing: data/jobs.db is the
+        # single durable copy committed to git (the -wal sidecar is git-ignored),
+        # so the committed file must always contain the latest writes.
+        try:
+            self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        except Exception:  # noqa: BLE001 - checkpoint is best-effort, never fatal
+            pass
         self.conn.close()
 
     def __enter__(self) -> "Repository":
@@ -132,6 +139,17 @@ class Repository:
             for r in rows:
                 found[r["id"]] = _row_to_job(r)
         return [found[i] for i in ids if i in found]
+
+    def list_ids_by_message_id(self, message_id: int) -> list[int]:
+        """Job ids tied to a digest message, in the order they were sent
+        (score DESC, id ASC). Lets pagination self-heal if the digest's
+        bot_state row is ever lost."""
+        rows = self.conn.execute(
+            "SELECT id FROM jobs WHERE telegram_message_id = ? "
+            "ORDER BY score DESC, id ASC",
+            (message_id,),
+        ).fetchall()
+        return [r["id"] for r in rows]
 
     def set_status(self, job_id: int, status: JobStatus) -> bool:
         cur = self.conn.execute(

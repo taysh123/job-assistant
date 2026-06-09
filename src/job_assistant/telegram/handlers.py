@@ -51,7 +51,8 @@ def _since_iso(hours: int) -> str:
 def _edit_digest_page(client: TelegramClient, repo: Repository, config: Config,
                       message_id: int, page: int) -> bool:
     """Re-render and edit a digest message to ``page``. Returns False if unknown."""
-    rendered = render_page(repo, message_id, page, tz=config.digest.timezone)
+    rendered = render_page(repo, message_id, page, tz=config.digest.timezone,
+                           page_size=config.digest.page_size)
     if rendered is None:
         return False
     text, keyboard = rendered

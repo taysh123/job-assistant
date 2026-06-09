@@ -103,6 +103,11 @@ class FiltersConfig(BaseModel):
     seniority_allow: list[str] = Field(default_factory=list)
     seniority_deny: list[str] = Field(default_factory=list)
 
+    # Title-only hard exclusion of role *types* that aren't software-developer
+    # jobs (e.g. "sales engineer", "support engineer", recruiter). Matched against
+    # the title only, so a dev JD merely mentioning the word in its summary stays.
+    titles_deny: list[str] = Field(default_factory=list)
+
     # Minimum number of allow-list hits required to keep a job.
     min_match_score: int = 1
 

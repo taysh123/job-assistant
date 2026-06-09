@@ -38,6 +38,16 @@ def test_deny_keyword_excludes():
     assert e.evaluate(make_job(title="Engineer", summary="web3 crypto role")) is None
 
 
+def test_titles_deny_excludes_non_dev_roles_by_title_only():
+    e = engine(titles_allow=["engineer"], titles_deny=["sales", "support engineer"])
+    # Non-dev role caught by title -> dropped.
+    assert e.evaluate(make_job(title="Sales Engineer", summary="python")) is None
+    assert e.evaluate(make_job(title="Application Support Engineer", summary="java")) is None
+    # A real dev role that only mentions the term in its summary is kept.
+    kept = e.evaluate(make_job(title="Backend Engineer", summary="partner with the sales team"))
+    assert kept is not None
+
+
 def test_seniority_deny_excludes_by_title():
     e = engine(seniority_deny=["senior", "staff"])
     assert e.evaluate(make_job(title="Senior Engineer", summary="")) is None
@@ -74,6 +84,16 @@ def test_location_allow_applies_to_onsite_only():
 def test_location_deny_excludes():
     e = engine(locations_deny=["india"])
     assert e.evaluate(make_job(remote=False, location="Bangalore, India")) is None
+
+
+def test_location_deny_applies_to_onsite_only():
+    # A foreign on-site role is dropped, but a REMOTE role is location-agnostic and
+    # stays eligible even if its location text mentions a denied place.
+    e = engine(locations_deny=["india", "london"])
+    assert e.evaluate(make_job(remote=False, location="Bangalore, India")) is None
+    assert e.evaluate(make_job(remote=True, location="Remote (London-based team)")) is not None
+    # Israeli on-site roles are never touched by the foreign deny list.
+    assert e.evaluate(make_job(remote=False, location="Tel Aviv, Israel")) is not None
 
 
 def test_no_allowlist_keeps_everything_passing_gates():
