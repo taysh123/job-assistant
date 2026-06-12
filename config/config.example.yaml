@@ -54,6 +54,8 @@ sources:
       - "pagaya"
       - "bringg"
       - "cybereason"
+      - "nice"
+      - "appsflyer"
 
   lever:
     enabled: true
@@ -91,12 +93,14 @@ filters:
   # has no deny term, and passes the remote/location/seniority gates.
 
   # Broad set of junior-suitable software roles.
+  # Engineering-focused: pure analyst / data-scientist titles removed (Data Engineer
+  # + Machine Learning engineer roles still pass; broad "engineer"/"developer" cover
+  # AI/ML engineer titles).
   titles_allow:
     ["engineer", "developer", "programmer", "software", "full stack", "fullstack",
      "full-stack", "front end", "frontend", "front-end", "back end", "backend",
      "back-end", "web", "mobile", "android", "ios", "qa", "automation", "test",
-     "devops", "sre", "data analyst", "data engineer", "machine learning",
-     "data scientist"]
+     "devops", "data engineer", "machine learning"]
 
   # Junior/grad terms + core entry-level tech.
   keywords_allow:
@@ -128,10 +132,13 @@ filters:
      "bucharest", "ukraine", "kyiv", "kiev", "portugal", "lisbon", "porto", "spain",
      "madrid", "barcelona", "germany", "berlin", "munich", "france", "paris",
      "united kingdom", "london", "england", "manchester", "ireland", "dublin",
-     "netherlands", "amsterdam", "united states", "new york", "san francisco",
-     "austin", "boston", "seattle", "canada", "toronto", "vancouver", "brazil",
-     "sao paulo", "mexico", "argentina", "buenos aires", "colombia", "bogota",
-     "australia", "sydney", "melbourne"]
+     "netherlands", "amsterdam", "united states", "usa", "new york",
+     "san francisco", "austin", "boston", "seattle", "canada", "toronto",
+     "vancouver", "brazil", "sao paulo", "mexico", "argentina", "buenos aires",
+     "colombia", "bogota", "australia", "sydney", "melbourne", "philippines",
+     "manila", "cebu", "uae", "dubai", "abu dhabi", "turkey", "istanbul",
+     "egypt", "cairo", "vietnam", "thailand", "bangkok", "indonesia", "jakarta",
+     "south africa"]
 
   # Leave empty: a title-based allow gate would drop generic "Software Engineer"
   # roles that may be junior. e.g. ["junior", "graduate"]
@@ -150,6 +157,10 @@ filters:
   # account/HR/marketing). Matched on the title only, so a dev role that merely
   # mentions the word in its summary stays. (Manager/director titles are already
   # handled by seniority_deny.) Edit freely for your own profile.
+  # titles_allow includes the broad term "engineer", so ANY "X Engineer" passes the
+  # gate; these title-only deny terms remove the non-software / non-junior "engineer"
+  # roles (electrical, mechanical, GxP/lab, site-reliability/ops) plus sales/support/
+  # HR. Junior DevOps, QA Automation and junior AI/ML stay eligible.
   titles_deny:
     ["sales", "support engineer", "solutions engineer", "solution engineer",
      "presales", "pre-sales", "implementation", "customer engineer",
@@ -157,7 +168,16 @@ filters:
      "talent acquisition", "human resources", "marketing",
      "business development", "professional services", "field engineer",
      "helpdesk", "help desk", "service desk", "it support", "support specialist",
-     "technical support"]
+     "technical support",
+     "electrical", "mechanical", "instrument", "instrumentation", "hardware",
+     "civil", "chemical", "biomedical", "industrial", "manufacturing",
+     "mechatronic", "aerospace", "automotive", "rf engineer", "optical",
+     "process engineer", "gxp", "validation engineer",
+     "site reliability", "sre",
+     # Non-engineering roles (analyst/scientist/designer/pre-sales/founding/admin):
+     "analyst", "scientist", "researcher", "research engineer", "designer",
+     "application engineer", "founding", "office assistant", "administrative",
+     "receptionist", "community", "website admin", "web admin"]
 
   min_match_score: 1
 
@@ -171,21 +191,25 @@ filters:
   experience_mode: "filter"
   experience_penalty: 8         # score penalty used in downrank mode
 
-  # Ranking only (does not gate). Each match (in the title + LOCATION) adds
-  # boost_weight to the score. Tiered so the digest sorts:
-  #   center Israel > rest of Israel > remote/other — all remain eligible.
-  # "israel" lifts every Israeli role; center cities give Tel Aviv / Gush Dan /
-  # Central District an extra edge; junior/grad terms lift entry-level roles.
+  # LOCATION ranking only (does not gate): center Israel > rest of Israel >
+  # remote/other. "israel" lifts every Israeli role; center cities give Tel Aviv /
+  # Gush Dan / Central District an extra edge.
   boost_keywords:
-    ["junior", "graduate", "entry level", "entry-level", "new grad", "student",
-     "intern",
-     "israel",
+    ["israel",
      "tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv district", "gush dan",
      "ramat gan", "givatayim", "bnei brak", "holon", "bat yam", "herzliya",
      "petah tikva", "petach tikva", "ra'anana", "raanana", "kfar saba",
      "hod hasharon", "rosh haayin", "or yehuda", "rishon lezion", "rishon",
      "rehovot", "ness ziona", "nes ziona", "netanya", "central district", "merkaz"]
   boost_weight: 3
+
+  # JUNIOR ranking (title only): a dedicated, heavier boost so explicit entry-level
+  # roles sort to the very top — above same-tech non-junior roles, even Tel-Aviv
+  # ones. Weight > (israel + one center city) so a remote junior role still wins.
+  junior_boost_keywords:
+    ["junior", "graduate", "entry level", "entry-level", "new grad", "new-grad",
+     "student", "intern", "trainee", "associate"]
+  junior_boost_weight: 8
 
 digest:
   max_jobs: 25                # cap jobs per run (highest-ranked first)

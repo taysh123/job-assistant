@@ -109,6 +109,17 @@ def _fmt_run_time(dt: datetime, tz: str) -> str:
     return local.strftime("%d %b %Y, %H:%M")
 
 
+def _fit_badges(job: Job) -> str:
+    """Meaningful, mobile-friendly fit badges from match reasons (not the raw score):
+    a 🟢 Junior tag when an entry-level signal fired, and 🏠 Remote for remote roles."""
+    tags = []
+    if any(r.startswith("junior:") for r in job.match_reasons):
+        tags.append("🟢 Junior")
+    if job.remote:
+        tags.append("🏠 Remote")
+    return " · ".join(tags)
+
+
 def _compact_card(index: int, job: Job, *, summary_chars: int = 110) -> str:
     """One numbered job entry: at most three short lines (no paragraphs)."""
     title = escape(_truncate(job.title or "Untitled role", 70))
@@ -116,6 +127,8 @@ def _compact_card(index: int, job: Job, *, summary_chars: int = 110) -> str:
     location = escape(_truncate(job.location or "—", 48))
     source = escape(job.source)
     badge = f"  {STATUS_BADGE[job.status]}" if job.status in STATUS_BADGE else ""
+    badges = _fit_badges(job)
+    badges_suffix = f" · {badges}" if badges else ""
 
     # Top few match reasons (location is already shown above, so this stays short);
     # fall back to a trimmed summary when a job has no reasons.
@@ -125,7 +138,7 @@ def _compact_card(index: int, job: Job, *, summary_chars: int = 110) -> str:
 
     lines = [
         f"<b>{index}. {title}</b> · 🏢 {company}{badge}",
-        f"   📍 {location} · 🌐 {source} · ⭐{job.score}",
+        f"   📍 {location} · 🌐 {source}{badges_suffix}",
     ]
     if detail_line:
         lines.append(detail_line)

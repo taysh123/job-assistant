@@ -22,9 +22,11 @@ def test_example_and_active_configs_load():
 
 def test_default_profile_is_graduate_junior_israel():
     cfg = load_config("config/config.yaml").filters
-    # Junior prioritization via ranking, not a hard title gate.
+    # Junior prioritization via ranking, not a hard title gate. Junior signals get a
+    # dedicated, heavier boost than location so entry-level roles sort to the top.
     assert cfg.seniority_allow == []
-    assert "junior" in cfg.boost_keywords
+    assert "junior" in cfg.junior_boost_keywords
+    assert cfg.junior_boost_weight > cfg.boost_weight
     assert "tel aviv" in cfg.boost_keywords
     assert cfg.boost_weight > 0
     # Senior roles are dropped; openness preserved (no topic exclusions).
@@ -63,6 +65,11 @@ def test_shipped_config_excludes_foreign_onsite_keeps_israel_and_remote():
                                remote=False, location="Bangalore, India")) is None
     assert e.evaluate(make_job(title="Software Engineer", summary="python",
                                remote=False, location="Budapest, Hungary")) is None
+    # Abbreviations / additional foreign locations (surfaced by the NICE board).
+    assert e.evaluate(make_job(title="Software Engineer", summary="python",
+                               remote=False, location="USA - Sandy, UT")) is None
+    assert e.evaluate(make_job(title="Software Engineer", summary="python",
+                               remote=False, location="Philippines - Manila")) is None
     # Israeli on-site (incl. the bare 'TLV' abbreviation) is kept.
     assert e.evaluate(make_job(title="Backend Engineer", summary="python",
                                remote=False, location="TLV")) is not None
@@ -71,6 +78,54 @@ def test_shipped_config_excludes_foreign_onsite_keeps_israel_and_remote():
     # Remote roles are location-agnostic and kept regardless of location text.
     assert e.evaluate(make_job(title="Software Engineer", summary="python",
                                remote=True, location="Anywhere in the World")) is not None
+
+
+def test_shipped_config_drops_non_software_and_ops_engineer_roles():
+    """The broad 'engineer' allow-term matches any 'X Engineer'. titles_deny removes
+    non-software disciplines and pure-ops/SRE, while junior dev/DevOps/QA/ML stay."""
+    e = FilterEngine(load_config("config/config.yaml").filters)
+    drop = [
+        "Site Reliability Engineer",
+        "GxP Instrument Systems Engineer",
+        "Electrical Engineer",
+        "Mechanical Engineer",
+    ]
+    for title in drop:
+        assert e.evaluate(make_job(title=title, summary="python",
+                                   location="Tel Aviv, Israel")) is None, title
+    keep = [
+        "Junior DevOps Engineer",
+        "QA Automation Engineer",
+        "Backend Developer",
+        "Junior Machine Learning Engineer",
+    ]
+    for title in keep:
+        assert e.evaluate(make_job(title=title, summary="python",
+                                   location="Tel Aviv, Israel")) is not None, title
+
+
+def test_shipped_config_drops_analyst_scientist_designer_noise():
+    """Profile is engineering-focused (no analyst/scientist/designer). These are
+    dropped by title; junior dev/DevOps/QA/Data-Eng/ML stay eligible."""
+    e = FilterEngine(load_config("config/config.yaml").filters)
+    drop = [
+        "Fraud Analyst", "Product Analyst", "Online Data Analyst",
+        "AI Applied Scientist", "Algorithm and Applied AI Scientist",
+        "AI Research Engineer", "Blockchain Engineer & Researcher",
+        "Product Designer", "Web Designer", "Office Assistant",
+        "Community Engagement Intern", "Application Engineer", "Founding Engineer",
+    ]
+    for title in drop:
+        assert e.evaluate(make_job(title=title, summary="python",
+                                   location="Tel Aviv, Israel")) is None, title
+    keep = [
+        "Junior Software Engineer", "Backend Developer", "Junior DevOps Engineer",
+        "QA Automation Engineer", "Data Engineer", "Machine Learning Engineer",
+        "Integration Engineer", "Analytics Engineer",
+    ]
+    for title in keep:
+        assert e.evaluate(make_job(title=title, summary="python",
+                                   location="Tel Aviv, Israel")) is not None, title
 
 
 def test_israel_boards_enabled():

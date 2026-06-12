@@ -38,9 +38,20 @@ group so they never clash writing the database:
 > button presses — including **Prev/Next** paging and Save/Ignore/Apply — are
 > processed at the next `bot.yml` run (default every 20 min), not instantly. The
 > digest message then edits in place (page state is preserved in SQLite). The
-> **Open** button is a direct URL link, so it always works immediately. To make
-> paging/actions feel snappier, lower the `bot.yml` interval (a public repo gets
-> unlimited Actions minutes; see _Cost_ below).
+> **Open** button is a direct URL link, so it always works immediately.
+>
+> **Want instant Prev/Next?** While you're actively browsing, run the bundled
+> **watcher** on your own machine:
+> ```powershell
+> python -m job_assistant.cli process-updates --watch   # Ctrl+C to stop
+> ```
+> It long-polls Telegram, so presses are handled in ~1–2s (and the button gets a
+> proper acknowledgement instead of expiring). It uses the same local `data/jobs.db`
+> and needs no extra setup. The 20-min `bot.yml` cron remains the fallback for when
+> the watcher isn't running. **Caveat:** Telegram allows only one `getUpdates`
+> consumer at a time, so while the watcher runs an overlapping `bot.yml` run will get
+> a harmless `409 Conflict` and skip — optionally pause `bot.yml` during long
+> watching sessions.
 
 State (`data/jobs.db`) is committed back to the repo after each run — the single
 durable copy of your jobs and their statuses.
@@ -93,6 +104,7 @@ python -m job_assistant.cli init-db
 python -m job_assistant.cli collect            # collect + send a real digest
 python -m job_assistant.cli collect --dry-run  # persist but don't send
 python -m job_assistant.cli process-updates    # handle commands/buttons once
+python -m job_assistant.cli process-updates --watch  # ...or keep handling them live (instant Prev/Next)
 python -m job_assistant.cli weekly             # send the weekly summary
 pytest                                          # run the tests
 ```
@@ -173,14 +185,17 @@ The shipped defaults are tuned for a **Graduate / Junior software search in Isra
   - `titles_allow` / `keywords_allow` — a job needs ≥ `min_match_score` hits (title or summary).
   - `keywords_deny` / `seniority_deny` / `titles_deny` / `locations_deny` — hard exclusions.
     `titles_deny` is title-only and drops non-dev role types that share a software
-    word (e.g. "sales/support/solutions engineer", recruiter, account/HR/marketing).
+    word (e.g. "sales/support/solutions engineer", analyst, scientist, designer, ops/SRE,
+    recruiter, account/HR/marketing). `locations_deny` (on-site only) removes roles abroad.
   - `remote`: `any` | `remote_only` | `onsite_only`.
   - `locations_allow` — optional HARD geo filter for on-site jobs (remote always passes);
     empty by default so all Israeli locations + remote stay eligible (center handled by ranking).
   - `seniority_allow` — optional gate matched against the title (left empty by default).
-  - `boost_keywords` / `boost_weight` — **ranking only**: matches (in title + location)
-    add weight so junior + Israel/center roles sort to the top, without excluding any
-    Israeli location or remote.
+  - `boost_keywords` / `boost_weight` — **ranking only**: location matches (title + location)
+    lift Israel/center roles; capped so one multi-token location can't stack.
+  - `junior_boost_keywords` / `junior_boost_weight` — **ranking only**: a heavier title-only
+    boost so explicit Junior/Graduate/Entry roles sort to the very top (above same-tech
+    non-junior roles, even Tel-Aviv ones).
   - `max_years_experience` / `experience_mode` / `experience_penalty` — junior-fit
     **experience detection** (see below).
 - **digest** — `max_jobs` per run, `summary_chars`, `timezone`, `page_size` (1 = one job/page).

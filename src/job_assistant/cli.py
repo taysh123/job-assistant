@@ -27,7 +27,7 @@ from .pipeline import run_collection
 from .summary.weekly import send_weekly_summary
 from .telegram.client import TelegramClient
 from .telegram.formatting import format_job_card, job_keyboard
-from .telegram.handlers import process_updates
+from .telegram.handlers import process_updates, watch_updates
 
 DEFAULT_DB = "data/jobs.db"
 
@@ -65,6 +65,14 @@ def cmd_process_updates(args) -> int:
     client = TelegramClient(secrets.telegram_bot_token, secrets.telegram_chat_id)
     with Repository(args.db) as repo:
         repo.init_schema()
+        if getattr(args, "watch", False):
+            print(f"Watching for updates (long-poll {args.long_poll}s)… Ctrl+C to stop.")
+            try:
+                watch_updates(client, repo, config, long_poll=args.long_poll)
+            except KeyboardInterrupt:
+                pass
+            print("Stopped watching.")
+            return 0
         n = process_updates(client, repo, config)
     print(f"Processed {n} update(s)")
     return 0
@@ -160,7 +168,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_collect.add_argument("--dry-run", action="store_true",
                            help="Persist results but do not send to Telegram")
 
-    sub.add_parser("process-updates", help="Handle pending Telegram commands and button presses")
+    p_updates = sub.add_parser(
+        "process-updates", help="Handle pending Telegram commands and button presses")
+    p_updates.add_argument(
+        "--watch", action="store_true",
+        help="Long-poll continuously for near real-time Prev/Next (Ctrl+C to stop)")
+    p_updates.add_argument(
+        "--long-poll", type=int, default=25, metavar="SECONDS",
+        help="getUpdates long-poll timeout when --watch is set (default: 25)")
     sub.add_parser("weekly", help="Send the weekly summary")
     sub.add_parser("test-telegram", help="Send a test message to verify Telegram connectivity")
     sub.add_parser("test-job-card", help="Send a sample job card (production formatting + buttons)")

@@ -29,9 +29,9 @@ class TelegramClient:
 
     # --- low level -------------------------------------------------------
 
-    def _call(self, method: str, **params) -> dict:
+    def _call(self, method: str, _timeout: int | None = None, **params) -> dict:
         url = API_BASE.format(token=self.token, method=method)
-        resp = self._session.post(url, json=params, timeout=self.timeout)
+        resp = self._session.post(url, json=params, timeout=_timeout or self.timeout)
         data = resp.json()
         if not data.get("ok"):
             raise TelegramError(f"{method} failed: {data.get('description', data)}")
@@ -78,4 +78,6 @@ class TelegramClient:
         params: dict = {"timeout": timeout, "allowed_updates": ["message", "callback_query"]}
         if offset is not None:
             params["offset"] = offset
-        return self._call("getUpdates", **params)
+        # When long-polling, the HTTP read must outlast Telegram's server-side wait.
+        read_timeout = self.timeout if timeout == 0 else timeout + 10
+        return self._call("getUpdates", _timeout=read_timeout, **params)

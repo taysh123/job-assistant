@@ -72,6 +72,26 @@ def test_format_digest_page_shows_status_badge():
     assert "✅" in text
 
 
+def test_compact_card_shows_junior_remote_badges_not_raw_score():
+    job = _ided([make_job(title="Junior Backend Developer", remote=True, location="Remote")])[0]
+    job.match_reasons = ["title:developer", "junior:junior", "remote"]
+    job.score = 14
+    text = format_digest_page([job], page=1, total_pages=1, total_jobs=1,
+                              run_dt=datetime(2026, 6, 3, tzinfo=timezone.utc))
+    assert "🟢 Junior" in text     # meaningful fit badge
+    assert "🏠 Remote" in text
+    assert "⭐" not in text         # raw internal score no longer shown
+
+
+def test_compact_card_no_junior_badge_for_generic_role():
+    job = _ided([make_job(title="Software Engineer", remote=False, location="Tel Aviv")])[0]
+    job.match_reasons = ["title:engineer", "boost:tel aviv"]
+    text = format_digest_page([job], page=1, total_pages=1, total_jobs=1,
+                              run_dt=datetime(2026, 6, 3, tzinfo=timezone.utc))
+    assert "🟢 Junior" not in text
+    assert "🏠 Remote" not in text
+
+
 def test_digest_keyboard_action_rows_and_nav():
     jobs = _ided([make_job(), make_job()])
     kb = digest_keyboard(jobs, page=2, total_pages=3)

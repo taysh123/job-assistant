@@ -98,6 +98,21 @@ def test_test_telegram_without_secrets_fails(tmp_path, monkeypatch):
     assert main(["test-telegram"]) == 1
 
 
+def test_process_updates_watch_dispatches_to_watch_loop(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "999")
+    called = {}
+
+    def fake_watch(client, repo, config, *, long_poll=25, **kw):
+        called["long_poll"] = long_poll
+
+    monkeypatch.setattr("job_assistant.cli.watch_updates", fake_watch)
+    db = tmp_path / "jobs.db"
+    rc = main(["--db", str(db), "process-updates", "--watch", "--long-poll", "5"])
+    assert rc == 0
+    assert called["long_poll"] == 5
+
+
 def test_process_updates_without_secrets_is_noop(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("job_assistant.config.load_dotenv", lambda *a, **k: None)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)

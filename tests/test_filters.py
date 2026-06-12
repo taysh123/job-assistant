@@ -163,10 +163,38 @@ def test_boost_ranks_israel_junior_above_generic():
     assert [j.external_id for j in result] == ["il", "generic"]
 
 
+def test_location_boost_is_capped_so_one_city_does_not_stack():
+    # A single Tel Aviv location string matches several boost tokens, but location
+    # boost is capped (israel + one center tier) so it can't dwarf the junior boost.
+    e = engine(titles_allow=["engineer"],
+               boost_keywords=["israel", "tel aviv", "tel aviv-yafo", "gush dan"],
+               boost_weight=3)
+    j = e.evaluate(make_job(title="Software Engineer",
+                            location="Tel Aviv-Yafo, Gush Dan, Israel"))
+    # title:engineer(1) + capped location boost (2 * 3) = 7, not 1 + 4*3 = 13.
+    assert j.score == 7
+
+
 def test_boost_does_not_bypass_allow_gate():
     # A job that matches only a boost term (no allow hit) is still excluded.
     e = engine(keywords_allow=["python"], boost_keywords=["junior"], min_match_score=1)
     assert e.evaluate(make_job(title="Junior Marketing Lead", summary="seo")) is None
+
+
+def test_junior_boost_ranks_junior_above_generic_israel_role():
+    e = engine(
+        titles_allow=["engineer"],
+        boost_keywords=["israel", "tel aviv"], boost_weight=3,
+        junior_boost_keywords=["junior", "graduate"], junior_boost_weight=8,
+    )
+    generic_il = make_job(external_id="il", title="Software Engineer",
+                          location="Tel Aviv, Israel", remote=False)  # +israel +telaviv = 7
+    junior_remote = make_job(external_id="jr", title="Junior Software Engineer",
+                             location="Remote", remote=True)          # +junior = 9
+    result = e.filter([generic_il, junior_remote])
+    assert [j.external_id for j in result] == ["jr", "il"]
+    jr = next(j for j in result if j.external_id == "jr")
+    assert any(r.startswith("junior:") for r in jr.match_reasons)
 
 
 def test_no_boost_keywords_keeps_scores_unchanged():

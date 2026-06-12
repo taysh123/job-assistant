@@ -23,6 +23,11 @@ ONSITE_ONLY = "onsite_only"
 # so a keyword-stuffed description can't outrank the location/junior boost.
 KEYWORD_SCORE_CAP = 4
 
+# Cap on how many LOCATION boost terms count, so one place written with several
+# tokens ("Tel Aviv-Yafo, Gush Dan, Israel") can't stack — it scores at most the
+# intended two tiers (israel + one center city), keeping junior the stronger signal.
+LOCATION_BOOST_CAP = 2
+
 
 def _haystack(job: Job) -> str:
     return f"{job.title}\n{job.summary}".lower()
@@ -85,10 +90,17 @@ class FilterEngine:
 
         score = base if not no_allowlist else max(base, 1)
 
-        # Ranking-only boost (does not affect the gate above).
-        for hit in _contains_any(_boost_haystack(job), cfg.boost_keywords):
+        # Ranking-only LOCATION boost (does not affect the gate above), capped so a
+        # single multi-token location can't stack beyond the intended tiers.
+        for hit in _contains_any(_boost_haystack(job), cfg.boost_keywords)[:LOCATION_BOOST_CAP]:
             score += cfg.boost_weight
             reasons.append(f"boost:{hit}")
+
+        # Junior/graduate signals (title only) get a dedicated, heavier boost so
+        # genuine entry-level roles sort above same-tech non-junior roles.
+        for hit in _contains_any(job.title, cfg.junior_boost_keywords):
+            score += cfg.junior_boost_weight
+            reasons.append(f"junior:{hit}")
 
         # Experience requirement: act only when a role *explicitly* asks for more
         # years than allowed (generic roles with no stated years pass untouched).
