@@ -121,9 +121,10 @@ filters:
   # forgets to list (e.g. a job tagged only "TLV").
   locations_allow: []
 
-  # locations_deny is scoped to ON-SITE roles only (remote jobs are never dropped).
-  # Use it to remove on-site roles abroad for an Israel-wide + remote search. Never
-  # list Israeli locations here. Extend if foreign on-site noise slips through.
+  # Removes roles abroad for an Israel-wide + remote search. Applies to on-site
+  # roles, and to "remote" roles whose location pins them to a denied region
+  # (region-restricted hiring) — a remote location containing anywhere/worldwide/
+  # global/remote always stays. Never list Israeli locations here.
   locations_deny:
     ["india", "bangalore", "bengaluru", "gurugram", "gurgaon", "hyderabad", "pune",
      "mumbai", "delhi", "noida", "china", "beijing", "shanghai", "guangzhou",
@@ -177,7 +178,9 @@ filters:
      # Non-engineering roles (analyst/scientist/designer/pre-sales/founding/admin):
      "analyst", "scientist", "researcher", "research engineer", "designer",
      "application engineer", "founding", "office assistant", "administrative",
-     "receptionist", "community", "website admin", "web admin"]
+     "receptionist", "community", "website admin", "web admin",
+     # IT-ops / advocacy roles observed in real collected data.
+     "it specialist", "developer advocate", "noc engineer"]
 
   min_match_score: 1
 

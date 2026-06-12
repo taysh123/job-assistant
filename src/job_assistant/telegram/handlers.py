@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from ..config import Config
 from ..db.repository import Repository
 from ..models import JobStatus
-from .client import TelegramClient, TelegramError
+from .client import TelegramClient
 from .formatting import format_job_card, format_job_list, job_keyboard
 from .pagination import load_digest, render_page
 
@@ -126,6 +126,7 @@ def _format_config(config: Config) -> str:
     enabled = [name for name, c in (
         ("remotive", s.remotive), ("weworkremotely", s.weworkremotely),
         ("greenhouse", s.greenhouse), ("lever", s.lever),
+        ("comeet", s.comeet), ("linkedin", s.linkedin),
     ) if c.enabled]
     return (
         "<b>Current config</b>\n\n"
@@ -231,6 +232,6 @@ def watch_updates(client: TelegramClient, repo: Repository, config: Config, *,
             process_updates(client, repo, config, long_poll=long_poll)
         except KeyboardInterrupt:
             break
-        except (TelegramError, Exception) as exc:  # noqa: BLE001 - keep the loop alive
+        except Exception as exc:  # noqa: BLE001 - keep the loop alive
             logger.warning("watch cycle failed (retrying): %s", exc)
             time.sleep(error_backoff)

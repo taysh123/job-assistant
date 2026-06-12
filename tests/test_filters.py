@@ -87,13 +87,26 @@ def test_location_deny_excludes():
 
 
 def test_location_deny_applies_to_onsite_only():
-    # A foreign on-site role is dropped, but a REMOTE role is location-agnostic and
-    # stays eligible even if its location text mentions a denied place.
+    # A foreign on-site role is dropped, but a REMOTE role whose location still
+    # signals remote/global stays eligible even if it mentions a denied place.
     e = engine(locations_deny=["india", "london"])
     assert e.evaluate(make_job(remote=False, location="Bangalore, India")) is None
     assert e.evaluate(make_job(remote=True, location="Remote (London-based team)")) is not None
     # Israeli on-site roles are never touched by the foreign deny list.
     assert e.evaluate(make_job(remote=False, location="Tel Aviv, Israel")) is not None
+
+
+def test_location_deny_drops_region_locked_remote_roles():
+    # A "remote" job whose location pins it to a denied foreign region (with no
+    # anywhere/worldwide/remote marker) is region-restricted hiring — dropped.
+    e = engine(locations_deny=["bulgaria", "sofia", "canada"])
+    assert e.evaluate(make_job(remote=True, location="Sofia")) is None
+    assert e.evaluate(make_job(remote=True, location="Canada")) is None
+    # Global markers (or no location at all) keep the role eligible.
+    assert e.evaluate(make_job(remote=True, location="Anywhere in the World")) is not None
+    assert e.evaluate(make_job(remote=True, location="Remote (Sofia-based team)")) is not None
+    assert e.evaluate(make_job(remote=True, location="")) is not None
+    assert e.evaluate(make_job(remote=True, location="Tel Aviv, Israel")) is not None
 
 
 def test_no_allowlist_keeps_everything_passing_gates():

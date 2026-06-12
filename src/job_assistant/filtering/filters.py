@@ -28,6 +28,15 @@ KEYWORD_SCORE_CAP = 4
 # intended two tiers (israel + one center city), keeping junior the stronger signal.
 LOCATION_BOOST_CAP = 2
 
+# A remote job whose location contains one of these is hireable from anywhere; a
+# remote job *without* one whose location names a denied region is region-locked.
+GLOBAL_LOCATION_MARKERS = ("anywhere", "worldwide", "global", "remote")
+
+
+def _location_is_global(location: str) -> bool:
+    low = location.lower().strip()
+    return not low or any(marker in low for marker in GLOBAL_LOCATION_MARKERS)
+
 
 def _haystack(job: Job) -> str:
     return f"{job.title}\n{job.summary}".lower()
@@ -62,10 +71,13 @@ class FilterEngine:
             return None
         if _contains_any(job.title, cfg.titles_deny):
             return None
-        # Geo deny is for on-site roles only: remote jobs are location-agnostic
-        # (so a foreign country/city list never drops a remote opportunity).
-        if not job.remote and _contains_any(job.location, cfg.locations_deny):
-            return None
+        # Geo deny: on-site roles abroad are dropped. A remote role is normally
+        # location-agnostic, but when its location pins it to a denied region with
+        # no anywhere/worldwide/remote marker, it's region-restricted hiring —
+        # equally unusable — so it is dropped too.
+        if _contains_any(job.location, cfg.locations_deny):
+            if not job.remote or not _location_is_global(job.location):
+                return None
 
         # 2. Remote / location gates.
         if not self._passes_remote(job):

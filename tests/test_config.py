@@ -80,6 +80,21 @@ def test_shipped_config_excludes_foreign_onsite_keeps_israel_and_remote():
                                remote=True, location="Anywhere in the World")) is not None
 
 
+def test_shipped_config_drops_region_locked_remote_roles():
+    """A 'remote' role pinned to a denied foreign region (no anywhere/worldwide/
+    remote marker in its location) is region-restricted hiring — not usable from
+    Israel — and is dropped. Truly global remote roles stay."""
+    e = FilterEngine(load_config("config/config.yaml").filters)
+    assert e.evaluate(make_job(title="Junior Software Engineer", summary="python",
+                               remote=True, location="Sofia")) is None
+    assert e.evaluate(make_job(title="Front End Web Developer", summary="javascript",
+                               remote=True, location="Canada")) is None
+    assert e.evaluate(make_job(title="Junior Software Engineer", summary="python",
+                               remote=True, location="Anywhere in the World")) is not None
+    assert e.evaluate(make_job(title="Junior Software Engineer", summary="python",
+                               remote=True, location="Remote")) is not None
+
+
 def test_shipped_config_drops_non_software_and_ops_engineer_roles():
     """The broad 'engineer' allow-term matches any 'X Engineer'. titles_deny removes
     non-software disciplines and pure-ops/SRE, while junior dev/DevOps/QA/ML stay."""
@@ -114,6 +129,8 @@ def test_shipped_config_drops_analyst_scientist_designer_noise():
         "AI Research Engineer", "Blockchain Engineer & Researcher",
         "Product Designer", "Web Designer", "Office Assistant",
         "Community Engagement Intern", "Application Engineer", "Founding Engineer",
+        # Observed in real collected data: IT-ops / advocacy roles, not a dev job.
+        "IT Specialist", "Developer Advocate", "NOC Engineer",
     ]
     for title in drop:
         assert e.evaluate(make_job(title=title, summary="python",

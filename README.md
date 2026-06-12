@@ -186,7 +186,9 @@ The shipped defaults are tuned for a **Graduate / Junior software search in Isra
   - `keywords_deny` / `seniority_deny` / `titles_deny` / `locations_deny` — hard exclusions.
     `titles_deny` is title-only and drops non-dev role types that share a software
     word (e.g. "sales/support/solutions engineer", analyst, scientist, designer, ops/SRE,
-    recruiter, account/HR/marketing). `locations_deny` (on-site only) removes roles abroad.
+    recruiter, account/HR/marketing). `locations_deny` removes roles abroad: on-site
+    ones, plus "remote" roles pinned to a denied region (a remote location saying
+    anywhere/worldwide/global/remote always stays).
   - `remote`: `any` | `remote_only` | `onsite_only`.
   - `locations_allow` — optional HARD geo filter for on-site jobs (remote always passes);
     empty by default so all Israeli locations + remote stay eligible (center handled by ranking).
