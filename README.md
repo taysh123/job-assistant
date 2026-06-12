@@ -210,7 +210,6 @@ requirement context — it catches `"5+ years"`, `"minimum 3 years"`, `"at least
 `"3-5 years of experience"` (lower bound), and `"senior-level"`, while a plain `"Software
 Engineer"` or `"0–2 years"` role is **never** affected. This trims senior roles that slip past
 the title-based `seniority_deny` without hiding genuine junior leads.
-- **digest** — `max_jobs` per run, `summary_chars`, `timezone`.
 
 See `config/config.example.yaml` for an annotated template.
 
