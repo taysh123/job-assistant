@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from job_assistant.config import Config
+from job_assistant import pipeline
+from job_assistant.config import Config, DigestConfig, Secrets
 from job_assistant.pipeline import run_collection
 from job_assistant.telegram.digest import send_digest
 from tests.conftest import FakeTelegramClient, make_job
@@ -52,3 +53,28 @@ def None_secrets():
     from job_assistant.config import Secrets
 
     return Secrets()
+
+
+# --- Wave 0 FIX C: empty runs are silent by default -------------------------
+
+def _empty_run(repo, monkeypatch, notify_empty):
+    monkeypatch.setattr("job_assistant.pipeline.collect_all", lambda cfg, secrets=None: [])
+    calls = []
+    monkeypatch.setattr("job_assistant.pipeline.send_digest",
+                        lambda *a, **k: calls.append(a) or 0)
+    cfg = Config(digest=DigestConfig(notify_empty=notify_empty))
+    secrets = Secrets(telegram_bot_token="t", telegram_chat_id="c")
+    counts = run_collection(cfg, secrets=secrets, repo=repo, send=True)
+    return calls, counts
+
+
+def test_empty_run_silent_by_default(repo, monkeypatch):
+    calls, counts = _empty_run(repo, monkeypatch, notify_empty=False)
+    assert calls == []                                # nothing sent to Telegram
+    assert counts["sent"] == 0
+    assert repo.last_run_at("collect") is not None    # but the run IS recorded
+
+
+def test_empty_run_notifies_when_enabled(repo, monkeypatch):
+    calls, _ = _empty_run(repo, monkeypatch, notify_empty=True)
+    assert len(calls) == 1                            # the empty digest is sent

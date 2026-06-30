@@ -119,11 +119,17 @@ class FiltersConfig(BaseModel):
     experience_mode: str = "downrank"
     experience_penalty: int = 8
 
-    # Ranking only: jobs matching these terms (in title/summary/location) get
+    # Ranking only: jobs matching these terms (in title/location) get
     # `boost_weight` added to their score so they sort to the top of the digest.
     # Boost never lets a job bypass the allow gate; empty list = no effect.
     boost_keywords: list[str] = Field(default_factory=list)
     boost_weight: int = 3
+
+    # Ranking only: explicit junior/graduate/entry signals (matched in the title)
+    # add `junior_boost_weight` — set higher than the location boost so genuine
+    # entry-level roles sort to the very top regardless of location.
+    junior_boost_keywords: list[str] = Field(default_factory=list)
+    junior_boost_weight: int = 8
 
 
 class DigestConfig(BaseModel):
@@ -133,6 +139,9 @@ class DigestConfig(BaseModel):
     # Jobs shown per page in the single paginated digest message (1 = one card
     # at a time, browsed with Prev/Next).
     page_size: int = 1
+    # When a run finds no new jobs, stay silent (no "no new jobs" message). The
+    # run is still recorded in the runs table. Set true to be pinged every run.
+    notify_empty: bool = False
 
 
 class Config(BaseModel):

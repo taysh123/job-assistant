@@ -87,13 +87,26 @@ def test_location_deny_excludes():
 
 
 def test_location_deny_applies_to_onsite_only():
-    # A foreign on-site role is dropped, but a REMOTE role is location-agnostic and
-    # stays eligible even if its location text mentions a denied place.
+    # A foreign on-site role is dropped, but a REMOTE role whose location still
+    # signals remote/global stays eligible even if it mentions a denied place.
     e = engine(locations_deny=["india", "london"])
     assert e.evaluate(make_job(remote=False, location="Bangalore, India")) is None
     assert e.evaluate(make_job(remote=True, location="Remote (London-based team)")) is not None
     # Israeli on-site roles are never touched by the foreign deny list.
     assert e.evaluate(make_job(remote=False, location="Tel Aviv, Israel")) is not None
+
+
+def test_location_deny_drops_region_locked_remote_roles():
+    # A "remote" job whose location pins it to a denied foreign region (with no
+    # anywhere/worldwide/remote marker) is region-restricted hiring — dropped.
+    e = engine(locations_deny=["bulgaria", "sofia", "canada"])
+    assert e.evaluate(make_job(remote=True, location="Sofia")) is None
+    assert e.evaluate(make_job(remote=True, location="Canada")) is None
+    # Global markers (or no location at all) keep the role eligible.
+    assert e.evaluate(make_job(remote=True, location="Anywhere in the World")) is not None
+    assert e.evaluate(make_job(remote=True, location="Remote (Sofia-based team)")) is not None
+    assert e.evaluate(make_job(remote=True, location="")) is not None
+    assert e.evaluate(make_job(remote=True, location="Tel Aviv, Israel")) is not None
 
 
 def test_no_allowlist_keeps_everything_passing_gates():
@@ -163,10 +176,38 @@ def test_boost_ranks_israel_junior_above_generic():
     assert [j.external_id for j in result] == ["il", "generic"]
 
 
+def test_location_boost_is_capped_so_one_city_does_not_stack():
+    # A single Tel Aviv location string matches several boost tokens, but location
+    # boost is capped (israel + one center tier) so it can't dwarf the junior boost.
+    e = engine(titles_allow=["engineer"],
+               boost_keywords=["israel", "tel aviv", "tel aviv-yafo", "gush dan"],
+               boost_weight=3)
+    j = e.evaluate(make_job(title="Software Engineer",
+                            location="Tel Aviv-Yafo, Gush Dan, Israel"))
+    # title:engineer(1) + capped location boost (2 * 3) = 7, not 1 + 4*3 = 13.
+    assert j.score == 7
+
+
 def test_boost_does_not_bypass_allow_gate():
     # A job that matches only a boost term (no allow hit) is still excluded.
     e = engine(keywords_allow=["python"], boost_keywords=["junior"], min_match_score=1)
     assert e.evaluate(make_job(title="Junior Marketing Lead", summary="seo")) is None
+
+
+def test_junior_boost_ranks_junior_above_generic_israel_role():
+    e = engine(
+        titles_allow=["engineer"],
+        boost_keywords=["israel", "tel aviv"], boost_weight=3,
+        junior_boost_keywords=["junior", "graduate"], junior_boost_weight=8,
+    )
+    generic_il = make_job(external_id="il", title="Software Engineer",
+                          location="Tel Aviv, Israel", remote=False)  # +israel +telaviv = 7
+    junior_remote = make_job(external_id="jr", title="Junior Software Engineer",
+                             location="Remote", remote=True)          # +junior = 9
+    result = e.filter([generic_il, junior_remote])
+    assert [j.external_id for j in result] == ["jr", "il"]
+    jr = next(j for j in result if j.external_id == "jr")
+    assert any(r.startswith("junior:") for r in jr.match_reasons)
 
 
 def test_no_boost_keywords_keeps_scores_unchanged():
@@ -186,3 +227,39 @@ def test_filter_unseen_against_db(repo):
     b = make_job(external_id="2")
     unseen = filter_unseen([a, b, make_job(external_id="2")], repo)
     assert [j.external_id for j in unseen] == ["2"]
+
+
+# --- Wave 0 FIX A: geo-deny matches whole words, not substrings -------------
+
+def test_geo_deny_does_not_drop_onsite_jerusalem():
+    # The real bug: "usa" in locations_deny matched the substring in "jerUSAlem".
+    e = engine(titles_allow=["engineer"], locations_deny=["usa", "new york"])
+    job = e.evaluate(make_job(title="Software Engineer", remote=False,
+                              location="Jerusalem, Israel"))
+    assert job is not None
+
+
+def test_geo_deny_still_drops_standalone_denied_token():
+    e = engine(titles_allow=["engineer"], locations_deny=["usa", "new york"])
+    assert e.evaluate(make_job(title="Software Engineer", remote=False,
+                               location="New York, USA")) is None
+
+
+def test_geo_deny_whole_word_keeps_israeli_cities():
+    e = engine(titles_allow=["engineer"], locations_deny=["usa", "india", "china"])
+    for city in ["Jerusalem, Israel", "Ramat Gan, Israel", "Herzliya"]:
+        assert e.evaluate(make_job(title="Software Engineer", remote=False,
+                                   location=city)) is not None, city
+
+
+def test_geo_deny_whole_word_preserves_region_lock_behavior():
+    e = engine(titles_allow=["engineer"], locations_deny=["india", "bangalore"])
+    # On-site abroad dropped.
+    assert e.evaluate(make_job(title="Software Engineer", remote=False,
+                               location="Bangalore, India")) is None
+    # Remote pinned to a denied region (no global marker) dropped.
+    assert e.evaluate(make_job(title="Software Engineer", remote=True,
+                               location="Bangalore, India")) is None
+    # Remote + a global marker stays eligible.
+    assert e.evaluate(make_job(title="Software Engineer", remote=True,
+                               location="Remote - Anywhere (India team)")) is not None

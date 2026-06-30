@@ -5,11 +5,14 @@ Endpoint: https://api.lever.co/v0/postings/<company>?mode=json
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from ..config import LeverConfig
 from ..models import Job
 from .base import Source
+
+logger = logging.getLogger(__name__)
 
 API_URL = "https://api.lever.co/v0/postings/{board}"
 
@@ -63,6 +66,12 @@ class LeverSource(Source):
     def _fetch_and_parse(self) -> list[Job]:
         jobs: list[Job] = []
         for board in self.config.boards:
-            payload = self._get(API_URL.format(board=board), params={"mode": "json"}).json()
-            jobs.extend(parse(payload, board=board))
+            try:
+                payload = self._get(
+                    API_URL.format(board=board), params={"mode": "json"}
+                ).json()
+                jobs.extend(parse(payload, board=board))
+            except Exception as exc:  # noqa: BLE001 - one bad board mustn't drop the source
+                logger.warning("lever board %s failed: %s", board, exc)
+                continue
         return jobs

@@ -8,6 +8,7 @@ from job_assistant.telegram.handlers import (
     OFFSET_KEY,
     handle_update,
     process_updates,
+    watch_updates,
 )
 from tests.conftest import FakeTelegramClient, make_job
 
@@ -98,3 +99,25 @@ def test_command_at_mention_stripped(repo):
     client = FakeTelegramClient()
     handle_update(client, repo, Config(), _command_update(8, "/stats@my_bot"))
     assert "Stats" in client.sent[0]["text"]
+
+
+def test_process_updates_forwards_long_poll_timeout(repo):
+    client = FakeTelegramClient()
+    process_updates(client, repo, Config(), long_poll=25)
+    assert client.get_updates_calls[-1]["timeout"] == 25
+
+
+def test_watch_updates_loops_until_stop(repo):
+    client = FakeTelegramClient()
+    calls = {"n": 0}
+
+    def stop() -> bool:
+        # Run three poll cycles, then stop.
+        done = calls["n"] >= 3
+        calls["n"] += 1
+        return done
+
+    watch_updates(client, repo, Config(), long_poll=25, stop=stop)
+    # Polled once per cycle, each time with the long-poll timeout.
+    assert len(client.get_updates_calls) == 3
+    assert all(c["timeout"] == 25 for c in client.get_updates_calls)

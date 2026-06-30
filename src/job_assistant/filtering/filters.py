@@ -11,6 +11,8 @@ Telegram card can explain *why* it surfaced.
 
 from __future__ import annotations
 
+import re
+
 from ..config import FiltersConfig
 from ..models import Job
 from .experience import required_years
@@ -22,6 +24,20 @@ ONSITE_ONLY = "onsite_only"
 # Cap on how much keyword (summary) hits contribute to the base relevance score,
 # so a keyword-stuffed description can't outrank the location/junior boost.
 KEYWORD_SCORE_CAP = 4
+
+# Cap on how many LOCATION boost terms count, so one place written with several
+# tokens ("Tel Aviv-Yafo, Gush Dan, Israel") can't stack — it scores at most the
+# intended two tiers (israel + one center city), keeping junior the stronger signal.
+LOCATION_BOOST_CAP = 2
+
+# A remote job whose location contains one of these is hireable from anywhere; a
+# remote job *without* one whose location names a denied region is region-locked.
+GLOBAL_LOCATION_MARKERS = ("anywhere", "worldwide", "global", "remote")
+
+
+def _location_is_global(location: str) -> bool:
+    low = location.lower().strip()
+    return not low or any(marker in low for marker in GLOBAL_LOCATION_MARKERS)
 
 
 def _haystack(job: Job) -> str:
@@ -38,6 +54,25 @@ def _boost_haystack(job: Job) -> str:
 def _contains_any(text: str, needles: list[str]) -> list[str]:
     low = text.lower()
     return [n for n in needles if n and n.lower() in low]
+
+
+def _location_denied(location: str, needles: list[str]) -> list[str]:
+    """Whole-word/phrase location-deny match.
+
+    Unlike :func:`_contains_any` (substring), a deny term matches only when it
+    appears as a standalone token, so ``"usa"`` does NOT match ``"Jerusalem"``.
+    Multi-word terms (``"new york"``) match as phrases. Boundaries are
+    non-alphanumeric, so commas/spaces delimit tokens and non-Latin text (Hebrew,
+    added later) keeps working.
+    """
+    low = location.lower()
+    hits: list[str] = []
+    for n in needles:
+        if not n:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(n.lower())}(?![a-z0-9])", low):
+            hits.append(n)
+    return hits
 
 
 class FilterEngine:
@@ -57,10 +92,13 @@ class FilterEngine:
             return None
         if _contains_any(job.title, cfg.titles_deny):
             return None
-        # Geo deny is for on-site roles only: remote jobs are location-agnostic
-        # (so a foreign country/city list never drops a remote opportunity).
-        if not job.remote and _contains_any(job.location, cfg.locations_deny):
-            return None
+        # Geo deny: on-site roles abroad are dropped. A remote role is normally
+        # location-agnostic, but when its location pins it to a denied region with
+        # no anywhere/worldwide/remote marker, it's region-restricted hiring —
+        # equally unusable — so it is dropped too.
+        if _location_denied(job.location, cfg.locations_deny):
+            if not job.remote or not _location_is_global(job.location):
+                return None
 
         # 2. Remote / location gates.
         if not self._passes_remote(job):
@@ -85,10 +123,17 @@ class FilterEngine:
 
         score = base if not no_allowlist else max(base, 1)
 
-        # Ranking-only boost (does not affect the gate above).
-        for hit in _contains_any(_boost_haystack(job), cfg.boost_keywords):
+        # Ranking-only LOCATION boost (does not affect the gate above), capped so a
+        # single multi-token location can't stack beyond the intended tiers.
+        for hit in _contains_any(_boost_haystack(job), cfg.boost_keywords)[:LOCATION_BOOST_CAP]:
             score += cfg.boost_weight
             reasons.append(f"boost:{hit}")
+
+        # Junior/graduate signals (title only) get a dedicated, heavier boost so
+        # genuine entry-level roles sort above same-tech non-junior roles.
+        for hit in _contains_any(job.title, cfg.junior_boost_keywords):
+            score += cfg.junior_boost_weight
+            reasons.append(f"junior:{hit}")
 
         # Experience requirement: act only when a role *explicitly* asks for more
         # years than allowed (generic roles with no stated years pass untouched).

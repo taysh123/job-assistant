@@ -8,6 +8,7 @@ GitHub Actions cron (not a live server), updates are drained from
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 from ..config import Config
@@ -125,6 +126,7 @@ def _format_config(config: Config) -> str:
     enabled = [name for name, c in (
         ("remotive", s.remotive), ("weworkremotely", s.weworkremotely),
         ("greenhouse", s.greenhouse), ("lever", s.lever),
+        ("comeet", s.comeet), ("linkedin", s.linkedin),
     ) if c.enabled]
     return (
         "<b>Current config</b>\n\n"
@@ -194,11 +196,18 @@ def handle_update(client: TelegramClient, repo: Repository, config: Config, upda
             handle_command(client, repo, config, text, chat_id)
 
 
-def process_updates(client: TelegramClient, repo: Repository, config: Config) -> int:
-    """Drain pending updates once and persist the new offset. Returns count."""
+def process_updates(client: TelegramClient, repo: Repository, config: Config,
+                    long_poll: int = 0) -> int:
+    """Drain pending updates once and persist the new offset. Returns count.
+
+    ``long_poll`` is the Telegram getUpdates timeout (seconds): 0 returns
+    immediately (the cron/one-shot mode); a positive value makes Telegram hold the
+    request until an update arrives, which the ``--watch`` loop uses for near
+    real-time response.
+    """
     offset_raw = repo.get_state(OFFSET_KEY)
     offset = int(offset_raw) if offset_raw else None
-    updates = client.get_updates(offset=offset)
+    updates = client.get_updates(offset=offset, timeout=long_poll)
     for update in updates:
         try:
             handle_update(client, repo, config, update)
@@ -206,3 +215,23 @@ def process_updates(client: TelegramClient, repo: Repository, config: Config) ->
             logger.warning("failed to handle update %s: %s", update.get("update_id"), exc)
         repo.set_state(OFFSET_KEY, str(update["update_id"] + 1))
     return len(updates)
+
+
+def watch_updates(client: TelegramClient, repo: Repository, config: Config, *,
+                  long_poll: int = 25, stop=None, error_backoff: float = 3.0) -> None:
+    """Continuously process updates via long polling for near real-time browsing.
+
+    Each cycle blocks (up to ``long_poll`` s) until Telegram has an update, then
+    handles it immediately — so Prev/Next reacts in ~1-2s and callbacks are answered
+    before they expire. Runs until ``stop()`` returns True or KeyboardInterrupt.
+    Transient errors (network, or a 409 if the GitHub-Actions cron polls at the same
+    time — Telegram allows only one getUpdates consumer) are logged and retried.
+    """
+    while not (stop and stop()):
+        try:
+            process_updates(client, repo, config, long_poll=long_poll)
+        except KeyboardInterrupt:
+            break
+        except Exception as exc:  # noqa: BLE001 - keep the loop alive
+            logger.warning("watch cycle failed (retrying): %s", exc)
+            time.sleep(error_backoff)

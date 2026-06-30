@@ -6,6 +6,7 @@ RSS item titles use the form "Company: Job Title".
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timezone
 from time import struct_time
@@ -15,6 +16,8 @@ import feedparser
 from ..config import WeWorkRemotelyConfig
 from ..models import Job
 from .base import Source
+
+logger = logging.getLogger(__name__)
 
 FEED_URL = "https://weworkremotely.com/categories/{slug}.rss"
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -77,7 +80,11 @@ class WeWorkRemotelySource(Source):
     def _fetch_and_parse(self) -> list[Job]:
         seen: dict[str, Job] = {}
         for slug in self.config.feeds:
-            text = self._get(FEED_URL.format(slug=slug)).text
-            for job in parse(text):
-                seen.setdefault(job.dedup_key, job)
+            try:
+                text = self._get(FEED_URL.format(slug=slug)).text
+                for job in parse(text):
+                    seen.setdefault(job.dedup_key, job)
+            except Exception as exc:  # noqa: BLE001 - one bad feed mustn't drop the source
+                logger.warning("weworkremotely feed %s failed: %s", slug, exc)
+                continue
         return list(seen.values())

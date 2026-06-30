@@ -6,6 +6,7 @@ Endpoint: https://boards-api.greenhouse.io/v1/boards/<token>/jobs?content=true
 from __future__ import annotations
 
 import html
+import logging
 import re
 from datetime import datetime
 
@@ -15,6 +16,8 @@ from .base import Source
 
 API_URL = "https://boards-api.greenhouse.io/v1/boards/{board}/jobs"
 _TAG_RE = re.compile(r"<[^>]+>")
+
+logger = logging.getLogger(__name__)
 
 
 def _strip_html(content: str) -> str:
@@ -68,8 +71,11 @@ class GreenhouseSource(Source):
     def _fetch_and_parse(self) -> list[Job]:
         jobs: list[Job] = []
         for board in self.config.boards:
-            payload = self._get(
-                API_URL.format(board=board), params={"content": "true"}
-            ).json()
-            jobs.extend(parse(payload, board=board))
+            try:
+                payload = self._get(
+                    API_URL.format(board=board), params={"content": "true"}
+                ).json()
+                jobs.extend(parse(payload, board=board))
+            except Exception as exc:  # noqa: BLE001 - one bad board mustn't drop the source
+                logger.warning("greenhouse board %s failed: %s", board, exc)
         return jobs

@@ -26,9 +26,11 @@ class FakeTelegramClient:
         self.edits: list[dict] = []
         self.answered: list[str] = []
         self.updates: list[dict] = []
+        self.get_updates_calls: list[dict] = []
         self._next_id = 1000
 
     def get_updates(self, offset=None, timeout=0):
+        self.get_updates_calls.append({"offset": offset, "timeout": timeout})
         return self.updates
 
     def send_message(self, text, *, reply_markup=None, disable_preview=True, chat_id=None):
