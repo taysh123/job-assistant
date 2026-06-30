@@ -257,6 +257,17 @@ class Repository:
         ).fetchone()
         return datetime.fromisoformat(row["ran_at"]) if row else None
 
+    def recent_runs(self, kind: str, limit: int = 10) -> list[dict]:
+        """Most recent runs of ``kind``, newest first, with parsed counts."""
+        rows = self.conn.execute(
+            "SELECT ran_at, counts FROM runs WHERE kind = ? ORDER BY id DESC LIMIT ?",
+            (kind, limit),
+        ).fetchall()
+        return [
+            {"ran_at": r["ran_at"], "counts": json.loads(r["counts"] or "{}")}
+            for r in rows
+        ]
+
     # --- bot_state -------------------------------------------------------
 
     def get_state(self, key: str, default: str | None = None) -> str | None:
