@@ -28,6 +28,7 @@ from .summary.weekly import send_weekly_summary
 from .telegram.client import TelegramClient
 from .telegram.formatting import format_job_card, job_keyboard
 from .telegram.handlers import process_updates, watch_updates
+from .scheduler import serve
 
 DEFAULT_DB = "data/jobs.db"
 
@@ -155,6 +156,26 @@ def cmd_weekly(args) -> int:
     return 0
 
 
+def cmd_serve(args) -> int:
+    config = load_config(args.config)
+    secrets = load_secrets()
+    if not secrets.is_configured:
+        print("Telegram secrets not configured; cannot serve.", file=sys.stderr)
+        return 1
+    with Repository(args.db) as repo:
+        repo.init_schema()
+        print(
+            f"Serving: collect every {config.serve.collect_interval_hours}h + weekly on "
+            f"Mondays; Telegram long-poll {args.long_poll}s. Ctrl+C to stop."
+        )
+        try:
+            serve(config, secrets, repo, poll=args.long_poll)
+        except KeyboardInterrupt:
+            pass
+    print("Stopped serving.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="job-assistant", description="Personal job assistant")
     parser.add_argument("--db", default=DEFAULT_DB, help="SQLite path (default: data/jobs.db)")
@@ -177,6 +198,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--long-poll", type=int, default=25, metavar="SECONDS",
         help="getUpdates long-poll timeout when --watch is set (default: 25)")
     sub.add_parser("weekly", help="Send the weekly summary")
+
+    p_serve = sub.add_parser(
+        "serve", help="Always-on loop: scheduled collect/weekly + live Telegram handling")
+    p_serve.add_argument("--long-poll", type=int, default=25, metavar="SECONDS",
+                         help="getUpdates long-poll timeout (default: 25)")
     sub.add_parser("test-telegram", help="Send a test message to verify Telegram connectivity")
     sub.add_parser("test-job-card", help="Send a sample job card (production formatting + buttons)")
     sub.add_parser(
@@ -191,6 +217,7 @@ HANDLERS = {
     "collect": cmd_collect,
     "process-updates": cmd_process_updates,
     "weekly": cmd_weekly,
+    "serve": cmd_serve,
     "test-telegram": cmd_test_telegram,
     "test-job-card": cmd_test_job_card,
     "reset-seen-jobs": cmd_reset_seen_jobs,

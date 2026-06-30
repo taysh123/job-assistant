@@ -1,10 +1,13 @@
 name: Process bot updates
 
 on:
-  schedule:
-    # Every 20 min (~1440 GHA minutes/month, within the free private-repo budget).
-    # Lower the interval if your repo is public (unlimited minutes).
-    - cron: "*/20 * * * *"
+  # Scheduled runs are DISABLED — the always-on `serve` process handles Telegram
+  # live (see DEPLOY.md). Kept as a manual fallback via "Run workflow".
+  # WARNING: do NOT re-enable this while `serve` runs — Telegram allows only one
+  # getUpdates consumer (the overlap yields a harmless 409). Uncomment to restore
+  # cron mode only if you are NOT running serve.
+  # schedule:
+  #   - cron: "*/20 * * * *"   # every 20 min
   workflow_dispatch: {}
 
 concurrency:

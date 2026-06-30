@@ -154,10 +154,17 @@ class DigestConfig(BaseModel):
     notify_empty: bool = False
 
 
+class ServeConfig(BaseModel):
+    # Always-on `serve` process only: how often to run a collection (the weekly
+    # summary fires on Mondays regardless). Ignored by the one-shot CLI commands.
+    collect_interval_hours: float = 12.0
+
+
 class Config(BaseModel):
     sources: SourcesConfig = Field(default_factory=SourcesConfig)
     filters: FiltersConfig = Field(default_factory=FiltersConfig)
     digest: DigestConfig = Field(default_factory=DigestConfig)
+    serve: ServeConfig = Field(default_factory=ServeConfig)
 
 
 # --- Secrets --------------------------------------------------------------

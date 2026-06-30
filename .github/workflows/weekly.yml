@@ -1,9 +1,10 @@
 name: Weekly summary
 
 on:
-  schedule:
-    # Mondays 08:00 UTC.
-    - cron: "0 8 * * 1"
+  # Scheduled runs are DISABLED — the always-on `serve` process sends the weekly
+  # summary on Mondays (see DEPLOY.md). Kept as a manual fallback via "Run workflow".
+  # schedule:
+  #   - cron: "0 8 * * 1"   # Mondays 08:00 UTC
   workflow_dispatch: {}
 
 concurrency:
