@@ -5,6 +5,7 @@ Official public JSON API for remote jobs. All listings are remote.
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 
@@ -14,6 +15,8 @@ from .base import Source
 
 API_URL = "https://remotive.com/api/remote-jobs"
 _TAG_RE = re.compile(r"<[^>]+>")
+
+logger = logging.getLogger(__name__)
 
 
 def _strip_html(html: str) -> str:
@@ -63,12 +66,16 @@ class RemotiveSource(Source):
         categories = self.config.categories or [None]
         seen: dict[str, Job] = {}
         for category in categories:
-            params: dict[str, str | int] = {"limit": self.config.limit}
-            if category:
-                params["category"] = category
-            if self.config.search:
-                params["search"] = self.config.search
-            payload = self._get(API_URL, params=params).json()
-            for job in parse(payload):
-                seen.setdefault(job.dedup_key, job)
+            try:
+                params: dict[str, str | int] = {"limit": self.config.limit}
+                if category:
+                    params["category"] = category
+                if self.config.search:
+                    params["search"] = self.config.search
+                payload = self._get(API_URL, params=params).json()
+                for job in parse(payload):
+                    seen.setdefault(job.dedup_key, job)
+            except Exception as exc:  # noqa: BLE001 - one bad category mustn't drop the source
+                logger.warning("remotive category %s failed: %s", category, exc)
+                continue
         return list(seen.values())
