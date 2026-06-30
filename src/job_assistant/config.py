@@ -160,11 +160,21 @@ class ServeConfig(BaseModel):
     collect_interval_hours: float = 12.0
 
 
+class AIConfig(BaseModel):
+    enabled: bool = False               # off => zero cost and no behavior change
+    model: str = "claude-haiku-4-5"     # cheap model for fit scoring + drafting
+    monthly_usd_cap: float = 5.0        # HARD monthly cap; fail-closed when exceeded
+    max_calls_per_run: int = 20         # per-run call limit (rate guard)
+    profile: str = ""                   # short description of the job-seeker
+    cv_path: str = "config/cv.txt"      # local CV text used for drafting (gitignored)
+
+
 class Config(BaseModel):
     sources: SourcesConfig = Field(default_factory=SourcesConfig)
     filters: FiltersConfig = Field(default_factory=FiltersConfig)
     digest: DigestConfig = Field(default_factory=DigestConfig)
     serve: ServeConfig = Field(default_factory=ServeConfig)
+    ai: AIConfig = Field(default_factory=AIConfig)
 
 
 # --- Secrets --------------------------------------------------------------
@@ -174,6 +184,7 @@ class Secrets(BaseModel):
     telegram_chat_id: str = ""
     imap_username: str = ""
     imap_password: str = ""
+    anthropic_api_key: str = ""
 
     @property
     def is_configured(self) -> bool:
@@ -182,6 +193,10 @@ class Secrets(BaseModel):
     @property
     def is_imap_configured(self) -> bool:
         return bool(self.imap_username and self.imap_password)
+
+    @property
+    def is_ai_configured(self) -> bool:
+        return bool(self.anthropic_api_key)
 
 
 # --- Loaders --------------------------------------------------------------
@@ -211,4 +226,5 @@ def load_secrets() -> Secrets:
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         imap_username=os.getenv("IMAP_USERNAME", ""),
         imap_password=os.getenv("IMAP_PASSWORD", ""),
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", ""),
     )

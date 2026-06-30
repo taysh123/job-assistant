@@ -13,6 +13,7 @@ venv/
 # Secrets / local config
 .env
 config/config.local.yaml
+config/cv.txt
 
 # Local-only databases (the production DB lives at data/jobs.db and IS tracked)
 *.db-journal

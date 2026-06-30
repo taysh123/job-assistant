@@ -21,6 +21,9 @@ dependencies = [
 dev = [
     "pytest>=8.0",
 ]
+ai = [
+    "anthropic>=0.40",       # only needed when the optional AI layer is enabled
+]
 
 [project.scripts]
 job-assistant = "job_assistant.cli:main"

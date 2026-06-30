@@ -8,6 +8,7 @@ from .config import Config, Secrets
 from .db.repository import Repository
 from .filtering.dedup import filter_unseen
 from .filtering.filters import FilterEngine
+from .ai import apply_ai_ranking, build_ai_client
 from .models import Job
 from .sources.registry import build_sources
 from .telegram.client import TelegramClient
@@ -44,8 +45,11 @@ def run_collection(config: Config, secrets: Secrets, repo: Repository,
             logger.warning("Telegram not configured; skipping send of %d jobs", len(inserted))
         else:
             client = TelegramClient(secrets.telegram_bot_token, secrets.telegram_chat_id)
-            # Respect the digest size cap; highest-scoring first.
-            to_send = inserted[: config.digest.max_jobs]
+            # Optional AI fit re-ranking (no-op and zero cost when disabled).
+            ai = build_ai_client(config.ai, secrets, repo)
+            ranked = apply_ai_ranking(ai, inserted, config.ai.profile)
+            # Respect the digest size cap; best-fit first.
+            to_send = ranked[: config.digest.max_jobs]
             sent = send_digest(
                 client, repo, to_send,
                 summary_chars=config.digest.summary_chars,
