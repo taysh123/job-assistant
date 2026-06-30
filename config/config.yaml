@@ -206,7 +206,7 @@ filters:
   # Set to "filter" for a no-experience first-job search: roles that explicitly
   # demand more than max_years_experience are removed (generic roles untouched).
   max_years_experience: 2
-  experience_mode: "filter"
+  experience_mode: "downrank"
   experience_penalty: 8         # score penalty applied in downrank mode
 
   # LOCATION ranking only (does not gate). Each match (title + location) adds

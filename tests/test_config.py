@@ -38,9 +38,10 @@ def test_default_profile_is_graduate_junior_israel():
     # and remote all stay eligible; center is preferred via ranking only.
     assert cfg.locations_allow == []
     assert "israel" in cfg.boost_keywords  # Israel-wide ranking lift
-    # Experience: junior-friendly — explicitly over-experienced roles are removed.
+    # Experience: junior-friendly — over-experienced roles are downranked (kept
+    # visible but sunk), not removed (D3: 33 -> 74 kept on the stored corpus).
     assert cfg.max_years_experience == 2
-    assert cfg.experience_mode == "filter"
+    assert cfg.experience_mode == "downrank"
     # Non-software role types (sales/support/etc.) are excluded by title.
     assert "sales" in cfg.titles_deny
     assert "support engineer" in cfg.titles_deny
