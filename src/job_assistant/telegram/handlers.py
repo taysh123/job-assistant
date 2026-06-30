@@ -26,6 +26,7 @@ CALLBACK_STATUS = {
     "save": JobStatus.SAVED,
     "ignore": JobStatus.IGNORED,
     "applied": JobStatus.APPLIED,
+    "open": JobStatus.OPENED,
 }
 
 HELP_TEXT = (
@@ -101,9 +102,17 @@ def handle_callback(client: TelegramClient, repo: Repository, config: Config,
         client.answer_callback_query(cq_id, "Job not found")
         return
 
-    repo.set_status(job.id, status)
-    job.status = status
-    client.answer_callback_query(cq_id, f"Marked {status.value}")
+    if action == "open":
+        # Opening is the weakest signal — record it only while the job is still
+        # untouched, so a tap never clobbers a Save / Ignore / Applied.
+        if job.status is JobStatus.NEW:
+            repo.set_status(job.id, JobStatus.OPENED)
+            job.status = JobStatus.OPENED
+        client.answer_callback_query(cq_id, "Opened ↗ — tap the title to view")
+    else:
+        repo.set_status(job.id, status)
+        job.status = status
+        client.answer_callback_query(cq_id, f"Marked {status.value}")
 
     if message_id is None:
         return
