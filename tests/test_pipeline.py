@@ -78,3 +78,23 @@ def test_empty_run_silent_by_default(repo, monkeypatch):
 def test_empty_run_notifies_when_enabled(repo, monkeypatch):
     calls, _ = _empty_run(repo, monkeypatch, notify_empty=True)
     assert len(calls) == 1                            # the empty digest is sent
+
+
+def test_run_collection_applies_ai_ranking_to_inserted(repo, monkeypatch):
+    monkeypatch.setattr("job_assistant.pipeline.collect_all",
+                        lambda cfg, secrets=None: [make_job(external_id="1",
+                                                            title="Python Engineer",
+                                                            summary="python")])
+    seen = {}
+
+    def fake_rank(ai, jobs, profile):
+        seen["jobs"] = jobs
+        return jobs
+
+    monkeypatch.setattr("job_assistant.pipeline.apply_ai_ranking", fake_rank)
+    monkeypatch.setattr("job_assistant.pipeline.send_digest", lambda *a, **k: 1)
+    cfg = Config()
+    cfg.filters.keywords_allow = ["python"]
+    secrets = Secrets(telegram_bot_token="t", telegram_chat_id="c")
+    run_collection(cfg, secrets=secrets, repo=repo, send=True)
+    assert "jobs" in seen and len(seen["jobs"]) == 1   # AI re-ranking saw the inserted job

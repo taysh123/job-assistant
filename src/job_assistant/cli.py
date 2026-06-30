@@ -19,7 +19,9 @@ import argparse
 import logging
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
+from .ai import build_ai_client, draft_application
 from .config import load_config, load_secrets
 from .db.repository import Repository
 from .models import Job
@@ -176,6 +178,32 @@ def cmd_serve(args) -> int:
     return 0
 
 
+def cmd_draft(args) -> int:
+    config = load_config(args.config)
+    secrets = load_secrets()
+    with Repository(args.db) as repo:
+        repo.init_schema()
+        job = repo.get_job(args.job_id)
+        if job is None:
+            print(f"No job with id {args.job_id}.", file=sys.stderr)
+            return 1
+        ai = build_ai_client(config.ai, secrets, repo)
+        if not ai.available():
+            print("AI is off or not configured (set ai.enabled in config and "
+                  "ANTHROPIC_API_KEY in the env), or the monthly cap is reached.",
+                  file=sys.stderr)
+            return 1
+        cv_path = Path(config.ai.cv_path)
+        cv_text = cv_path.read_text(encoding="utf-8") if cv_path.is_file() else ""
+        draft = draft_application(ai, job, config.ai.profile, cv_text)
+        if draft is None:
+            print("AI draft unavailable (cap reached or API error).", file=sys.stderr)
+            return 1
+        print(draft)
+        print("\n--- Review and send this yourself; the bot never applies. ---")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="job-assistant", description="Personal job assistant")
     parser.add_argument("--db", default=DEFAULT_DB, help="SQLite path (default: data/jobs.db)")
@@ -203,6 +231,10 @@ def build_parser() -> argparse.ArgumentParser:
         "serve", help="Always-on loop: scheduled collect/weekly + live Telegram handling")
     p_serve.add_argument("--long-poll", type=int, default=25, metavar="SECONDS",
                          help="getUpdates long-poll timeout (default: 25)")
+
+    p_draft = sub.add_parser(
+        "draft", help="AI-draft a tailored cover letter for a job id (review + send yourself)")
+    p_draft.add_argument("job_id", type=int, help="The job id to draft for (see /diag or the DB)")
     sub.add_parser("test-telegram", help="Send a test message to verify Telegram connectivity")
     sub.add_parser("test-job-card", help="Send a sample job card (production formatting + buttons)")
     sub.add_parser(
@@ -218,6 +250,7 @@ HANDLERS = {
     "process-updates": cmd_process_updates,
     "weekly": cmd_weekly,
     "serve": cmd_serve,
+    "draft": cmd_draft,
     "test-telegram": cmd_test_telegram,
     "test-job-card": cmd_test_job_card,
     "reset-seen-jobs": cmd_reset_seen_jobs,

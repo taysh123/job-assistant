@@ -240,3 +240,14 @@ digest:
   timezone: "Asia/Jerusalem"
   page_size: 1                # jobs per page (1 = one card at a time, Prev/Next to browse)
   notify_empty: false         # false = stay silent on empty runs (no "no new jobs" spam)
+
+# Optional AI layer — OFF by default (zero cost, no behavior change). When on, a
+# cheap capped Claude model re-ranks the digest by fit and can draft cover
+# letters (you review + send — it never applies). Needs ANTHROPIC_API_KEY in env.
+ai:
+  enabled: false
+  model: "claude-haiku-4-5"   # cheap model for fit scoring + drafting
+  monthly_usd_cap: 5.0        # HARD cap; AI fails closed (deterministic) when hit
+  max_calls_per_run: 20       # per-run call limit
+  profile: ""                 # 1-2 sentences about you, for fit scoring
+  cv_path: "config/cv.txt"    # your CV text used for drafting (gitignored)
