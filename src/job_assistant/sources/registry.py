@@ -6,6 +6,7 @@ from ..config import Config, Secrets
 from .base import Source
 from .comeet import ComeetSource
 from .greenhouse import GreenhouseSource
+from .jobicy import JobicySource
 from .lever import LeverSource
 from .linkedin_email import LinkedInEmailSource
 from .remotive import RemotiveSource
@@ -23,6 +24,8 @@ def build_sources(config: Config, secrets: Secrets | None = None) -> list[Source
     s = config.sources
     if s.remotive.enabled:
         sources.append(RemotiveSource(s.remotive))
+    if s.jobicy.enabled:
+        sources.append(JobicySource(s.jobicy))
     if s.weworkremotely.enabled and s.weworkremotely.feeds:
         sources.append(WeWorkRemotelySource(s.weworkremotely))
     if s.greenhouse.enabled and s.greenhouse.boards:

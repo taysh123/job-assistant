@@ -1,0 +1,35 @@
+{
+  "jobCount": 2,
+  "jobs": [
+    {
+      "id": 147001,
+      "url": "https://jobicy.com/jobs/147001-backend-engineer",
+      "jobSlug": "147001-backend-engineer",
+      "jobTitle": "Backend Engineer",
+      "companyName": "Acme Remote",
+      "companyLogo": "https://jobicy.com/logo1.webp",
+      "jobIndustry": ["Software Engineering"],
+      "jobType": ["Full-time"],
+      "jobGeo": "Anywhere",
+      "jobLevel": "Junior",
+      "jobExcerpt": "Build &amp; ship backend APIs in Python &amp; Go.",
+      "jobDescription": "<p>We are hiring a <b>Backend Engineer</b>.</p>",
+      "pubDate": "2026-06-28T10:00:00+00:00"
+    },
+    {
+      "id": 147002,
+      "url": "https://jobicy.com/jobs/147002-frontend-developer",
+      "jobSlug": "147002-frontend-developer",
+      "jobTitle": "Frontend Developer",
+      "companyName": "Globex",
+      "companyLogo": "https://jobicy.com/logo2.webp",
+      "jobIndustry": ["Software Engineering"],
+      "jobType": ["Full-time"],
+      "jobGeo": "EMEA",
+      "jobLevel": "Midweight",
+      "jobExcerpt": "React &amp; TypeScript role.",
+      "jobDescription": "<p>Frontend.</p>",
+      "pubDate": "2026-06-27T09:30:00+00:00"
+    }
+  ]
+}

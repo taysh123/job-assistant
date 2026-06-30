@@ -263,3 +263,47 @@ def test_geo_deny_whole_word_preserves_region_lock_behavior():
     # Remote + a global marker stays eligible.
     assert e.evaluate(make_job(title="Software Engineer", remote=True,
                                location="Remote - Anywhere (India team)")) is not None
+
+
+# --- Wave A: Hebrew matching ------------------------------------------------
+
+def test_hebrew_terms_match_through_prefixes_and_suffixes():
+    # Base-form needles match Hebrew prefixes (ב) and gender suffixes (ת) via
+    # the engine's substring matching.
+    e = engine(titles_allow=["מפתח"], junior_boost_keywords=["ג'וניור"],
+               junior_boost_weight=8, boost_keywords=["תל אביב"], boost_weight=3)
+    job = e.evaluate(make_job(title="דרושה מפתחת ג'וניור", summary="משרה מעניינת",
+                              location="משרה בתל אביב", remote=False))
+    assert job is not None
+    assert any(r.startswith("junior:") for r in job.match_reasons)  # ג'וניור in title
+    assert any(r.startswith("boost:") for r in job.match_reasons)   # תל אביב in location
+
+
+def test_hebrew_geresh_variants_are_normalized():
+    e = engine(titles_allow=["מפתח"], junior_boost_keywords=["ג'וניור"],
+               junior_boost_weight=8)
+    # Posting uses the Hebrew geresh U+05F3; the needle uses an ASCII apostrophe.
+    job = e.evaluate(make_job(title="מפתח ג׳וניור", summary="", location="",
+                              remote=False))
+    assert job is not None
+    assert any(r.startswith("junior:") for r in job.match_reasons)
+
+
+def test_hebrew_junior_dev_passes_real_config():
+    from job_assistant.config import load_config
+    e = FilterEngine(load_config("config/config.yaml").filters)
+    job = e.evaluate(make_job(
+        title="מפתח/ת Backend ג'וניור",
+        summary="דרוש מפתח תוכנה מתחיל עם Python. מתאים לבוגרי תואר / סטודנטים.",
+        location="רמת גן, ישראל", remote=False))
+    assert job is not None
+    assert any(r.startswith("junior:") for r in job.match_reasons)
+
+
+def test_hebrew_senior_role_is_denied_by_real_config():
+    from job_assistant.config import load_config
+    e = FilterEngine(load_config("config/config.yaml").filters)
+    job = e.evaluate(make_job(
+        title="מפתח Backend בכיר",
+        summary="דרוש מפתח בכיר עם ניסיון", location="תל אביב", remote=False))
+    assert job is None

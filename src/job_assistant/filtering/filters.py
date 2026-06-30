@@ -51,9 +51,17 @@ def _boost_haystack(job: Job) -> str:
     return f"{job.title}\n{job.location}".lower()
 
 
+# Hebrew loanwords (e.g. ג'וניור = "junior", סטאז' = "internship") appear with
+# different apostrophe/geresh characters; fold them to one form so a base-form
+# needle matches whichever variant the posting used. Hebrew has no letter case
+# and its prefixes (ה/ל/מ/ב/ו/ש) + gender suffixes (ת/ית) are handled implicitly
+# by substring matching of base-form terms (e.g. "מפתח" matches "המפתחת").
+_GERESH = str.maketrans({"׳": "'", "’": "'", "ʼ": "'"})
+
+
 def _contains_any(text: str, needles: list[str]) -> list[str]:
-    low = text.lower()
-    return [n for n in needles if n and n.lower() in low]
+    low = text.lower().translate(_GERESH)
+    return [n for n in needles if n and n.lower().translate(_GERESH) in low]
 
 
 def _location_denied(location: str, needles: list[str]) -> list[str]:

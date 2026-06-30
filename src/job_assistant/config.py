@@ -76,11 +76,21 @@ class LinkedInEmailConfig(BaseModel):
     limit: int = 50
 
 
+class JobicyConfig(BaseModel):
+    enabled: bool = False
+    # Jobicy remote-jobs API filters. geo "israel" returns EMEA/Anywhere remote
+    # roles open to an Israel-based applicant; industry "engineering" narrows to dev.
+    geo: str = "israel"
+    industry: str = "engineering"
+    count: int = 50
+
+
 class SourcesConfig(BaseModel):
     remotive: RemotiveConfig = Field(default_factory=RemotiveConfig)
     weworkremotely: WeWorkRemotelyConfig = Field(default_factory=WeWorkRemotelyConfig)
     greenhouse: GreenhouseConfig = Field(default_factory=GreenhouseConfig)
     lever: LeverConfig = Field(default_factory=LeverConfig)
+    jobicy: JobicyConfig = Field(default_factory=JobicyConfig)
     comeet: ComeetConfig = Field(default_factory=ComeetConfig)
     linkedin: LinkedInEmailConfig = Field(default_factory=LinkedInEmailConfig)
 

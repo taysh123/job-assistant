@@ -39,6 +39,7 @@ HELP_TEXT = (
     "/applied — jobs you've applied to\n"
     "/stats — counts by status\n"
     "/config — your current filter settings\n"
+    "/diag — collection funnel (collected→matched→sent)\n"
     "/help — this message"
 )
 
@@ -120,14 +121,16 @@ def handle_callback(client: TelegramClient, repo: Repository, config: Config,
 
 # --- commands ------------------------------------------------------------
 
+def _enabled_sources(config: Config) -> list[str]:
+    """Names of every source whose config has ``enabled=True`` (introspected, so a
+    newly-added source appears automatically without editing this list)."""
+    s = config.sources
+    return [name for name in type(s).model_fields if getattr(s, name).enabled]
+
+
 def _format_config(config: Config) -> str:
     f = config.filters
-    s = config.sources
-    enabled = [name for name, c in (
-        ("remotive", s.remotive), ("weworkremotely", s.weworkremotely),
-        ("greenhouse", s.greenhouse), ("lever", s.lever),
-        ("comeet", s.comeet), ("linkedin", s.linkedin),
-    ) if c.enabled]
+    enabled = _enabled_sources(config)
     return (
         "<b>Current config</b>\n\n"
         f"Sources: {', '.join(enabled) or 'none'}\n"
@@ -160,6 +163,27 @@ def _format_stats(repo: Repository) -> str:
     )
 
 
+def _format_diag(repo: Repository, config: Config) -> str:
+    """Collection-funnel diagnostics: recent runs (collected→matched→new→sent)
+    plus which sources are enabled and how many stored jobs came from each."""
+    runs = repo.recent_runs("collect", limit=8)
+    funnel = "\n".join(
+        f"{r['ran_at'][:16].replace('T', ' ')} — "
+        f"{r['counts'].get('collected', 0)}→{r['counts'].get('matched', 0)}"
+        f"→{r['counts'].get('new', 0)}→{r['counts'].get('sent', 0)}"
+        for r in runs
+    ) or "no collect runs recorded yet"
+    sources = repo.source_counts()
+    src = ", ".join(f"{k} ({v})" for k, v in list(sources.items())[:8]) or "—"
+    return (
+        "<b>Diagnostics</b>\n\n"
+        f"Enabled sources: {', '.join(_enabled_sources(config)) or 'none'}\n\n"
+        "<b>Recent collect runs</b> (collected→matched→new→sent):\n"
+        f"{funnel}\n\n"
+        f"<b>Stored jobs by source</b>: {src}"
+    )
+
+
 def handle_command(client: TelegramClient, repo: Repository, config: Config,
                    text: str, chat_id: str) -> None:
     cmd = text.strip().split()[0].lstrip("/").split("@")[0].lower()
@@ -179,6 +203,8 @@ def handle_command(client: TelegramClient, repo: Repository, config: Config,
         client.send_message(_format_stats(repo), chat_id=chat_id)
     elif cmd == "config":
         client.send_message(_format_config(config), chat_id=chat_id)
+    elif cmd == "diag":
+        client.send_message(_format_diag(repo, config), chat_id=chat_id)
     else:
         client.send_message("Unknown command. Try /help", chat_id=chat_id)
 
