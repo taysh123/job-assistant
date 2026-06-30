@@ -31,7 +31,7 @@ def test_format_digest_page_header_and_compact_cards():
     assert "8 new jobs" in text
     assert "page 1/2" in text
     assert "3 on this page" in text
-    assert "1. Role 1" in text and "3. Role 3" in text
+    assert "Role 1" in text and "Role 3" in text
     # Each numbered card is compact (<= 3 lines): 3 cards -> at most 9 card lines.
     card_block = text.split("\n\n", 1)[1]
     assert len([ln for ln in card_block.splitlines() if ln.strip()]) <= 9
@@ -43,7 +43,7 @@ def test_format_digest_page_single_job_per_page():
                               run_dt=datetime(2026, 6, 3, tzinfo=timezone.utc))
     assert "page 3/12" in text
     assert "on this page" not in text  # redundant clause omitted for one-job pages
-    assert "1. Solo Role" in text
+    assert "Solo Role" in text
     # Prev + Next available mid-list when one job per page.
     nav = digest_keyboard([job], page=3, total_pages=12)["inline_keyboard"][-1]
     nav_data = [b.get("callback_data") for b in nav]
@@ -92,6 +92,13 @@ def test_compact_card_no_junior_badge_for_generic_role():
     assert "🏠 Remote" not in text
 
 
+def test_compact_card_title_is_a_deep_link():
+    job = _ided([make_job(title="Backend Role", url="https://x/42")])[0]
+    text = format_digest_page([job], page=1, total_pages=1, total_jobs=1,
+                              run_dt=datetime(2026, 6, 3, tzinfo=timezone.utc))
+    assert '<a href="https://x/42">Backend Role</a>' in text  # tappable title
+
+
 def test_digest_keyboard_action_rows_and_nav():
     jobs = _ided([make_job(), make_job()])
     kb = digest_keyboard(jobs, page=2, total_pages=3)
@@ -99,7 +106,7 @@ def test_digest_keyboard_action_rows_and_nav():
     assert len(rows) == 3  # 2 job rows + nav row
     assert rows[0][0]["callback_data"] == "save:1:2"
     assert rows[0][1]["callback_data"] == "ignore:1:2"
-    assert rows[0][2]["url"] == jobs[0].url  # Open is a URL button
+    assert rows[0][2]["callback_data"] == "open:1:2"  # Open is a callback that records OPENED
     assert rows[0][3]["callback_data"] == "applied:1:2"
     nav_texts = [b["text"] for b in rows[-1]]
     nav_data = [b.get("callback_data") for b in rows[-1]]
@@ -141,7 +148,7 @@ def test_keyboard_for_new_job_has_actions():
     rows = kb["inline_keyboard"]
     assert rows[0][0]["callback_data"] == "save:7"
     assert rows[0][1]["callback_data"] == "ignore:7"
-    assert rows[1][0]["url"] == job.url  # Open is a URL button (instant)
+    assert rows[1][0]["callback_data"] == "open:7"  # Open records OPENED; title is the link
     assert rows[1][1]["callback_data"] == "applied:7"
 
 
@@ -149,7 +156,7 @@ def test_keyboard_collapses_after_action():
     job = make_job(status=JobStatus.SAVED)
     job.id = 7
     kb = job_keyboard(job)
-    assert kb["inline_keyboard"] == [[{"text": "🔗 Open", "url": job.url}]]
+    assert kb["inline_keyboard"] == [[{"text": "🔗 Open", "callback_data": "open:7"}]]
 
 
 def test_digest_header():

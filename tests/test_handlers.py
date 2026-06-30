@@ -47,6 +47,17 @@ def test_callback_applied(repo):
     assert repo.get_job(job.id).status is JobStatus.APPLIED
 
 
+def test_callback_open_records_opened_without_clobbering(repo):
+    job = repo.insert_new_jobs([make_job(external_id="1")])[0]
+    client = FakeTelegramClient()
+    handle_update(client, repo, Config(), _callback_update(20, f"open:{job.id}"))
+    assert repo.get_job(job.id).status is JobStatus.OPENED   # dead status now real
+    # Opening a SAVED job must NOT downgrade it back to opened.
+    repo.set_status(job.id, JobStatus.SAVED)
+    handle_update(client, repo, Config(), _callback_update(21, f"open:{job.id}"))
+    assert repo.get_job(job.id).status is JobStatus.SAVED
+
+
 def test_callback_unknown_job(repo):
     client = FakeTelegramClient()
     handle_update(client, repo, Config(), _callback_update(3, "save:9999"))

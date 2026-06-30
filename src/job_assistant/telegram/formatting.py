@@ -62,7 +62,7 @@ def format_job_card(job: Job, *, summary_chars: int = 280) -> str:
     reasons = escape(_reasons_line(job))
 
     lines = [
-        f"<b>{title}</b>",
+        f'<b><a href="{escape(job.url)}">{title}</a></b>',
         f"🏢 {company}  •  📍 {location} ({remote})",
         f"🌐 {source}  •  🗓 {_fmt_date(job.posted_at)}",
     ]
@@ -84,7 +84,7 @@ def job_keyboard(job: Job) -> dict:
     Once a job has been actioned we collapse to the Open link only, so the
     card reflects its final state without stale action buttons.
     """
-    open_button = {"text": "🔗 Open", "url": job.url}
+    open_button = {"text": "🔗 Open", "callback_data": f"open:{job.id}"}
     if job.status in (JobStatus.SAVED, JobStatus.IGNORED, JobStatus.APPLIED):
         return {"inline_keyboard": [[open_button]]}
     return {
@@ -137,7 +137,7 @@ def _compact_card(index: int, job: Job, *, summary_chars: int = 110) -> str:
     detail_line = f"   🔎 {escape(_truncate(detail, summary_chars))}" if detail else ""
 
     lines = [
-        f"<b>{index}. {title}</b> · 🏢 {company}{badge}",
+        f'<b>{index}. <a href="{escape(job.url)}">{title}</a></b> · 🏢 {company}{badge}',
         f"   📍 {location} · 🌐 {source}{badges_suffix}",
     ]
     if detail_line:
@@ -176,7 +176,7 @@ def digest_keyboard(page_jobs: list[Job], *, page: int, total_pages: int) -> dic
         rows.append([
             {"text": "💾", "callback_data": f"save:{job.id}:{page}"},
             {"text": "🙈", "callback_data": f"ignore:{job.id}:{page}"},
-            {"text": "🔗 Open", "url": job.url},
+            {"text": "🔗 Open", "callback_data": f"open:{job.id}:{page}"},
             {"text": "✅", "callback_data": f"applied:{job.id}:{page}"},
         ])
 

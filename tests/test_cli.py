@@ -87,7 +87,7 @@ def test_test_job_card_sends_card_with_buttons(tmp_path, monkeypatch):
     rows = captured["reply_markup"]["inline_keyboard"]
     assert rows[0][0]["callback_data"].startswith("save:")
     assert rows[0][1]["callback_data"].startswith("ignore:")
-    assert rows[1][0]["url"]  # Open
+    assert rows[1][0]["callback_data"].startswith("open:")  # Open records OPENED
     assert rows[1][1]["callback_data"].startswith("applied:")
 
 
