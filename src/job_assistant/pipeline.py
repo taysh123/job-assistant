@@ -53,7 +53,7 @@ def run_collection(config: Config, secrets: Secrets, repo: Repository,
                 tz=config.digest.timezone,
             )
     elif send and not inserted:
-        if secrets.is_configured:
+        if secrets.is_configured and config.digest.notify_empty:
             client = TelegramClient(secrets.telegram_bot_token, secrets.telegram_chat_id)
             send_digest(client, repo, [])
 

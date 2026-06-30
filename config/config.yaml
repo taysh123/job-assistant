@@ -211,3 +211,4 @@ digest:
   summary_chars: 280
   timezone: "Asia/Jerusalem"
   page_size: 1                # jobs per page (1 = one card at a time, Prev/Next to browse)
+  notify_empty: false         # false = stay silent on empty runs (no "no new jobs" spam)

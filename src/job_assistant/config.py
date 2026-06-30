@@ -139,6 +139,9 @@ class DigestConfig(BaseModel):
     # Jobs shown per page in the single paginated digest message (1 = one card
     # at a time, browsed with Prev/Next).
     page_size: int = 1
+    # When a run finds no new jobs, stay silent (no "no new jobs" message). The
+    # run is still recorded in the runs table. Set true to be pinged every run.
+    notify_empty: bool = False
 
 
 class Config(BaseModel):
