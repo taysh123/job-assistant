@@ -49,12 +49,30 @@ sources:
       - "cybereason"
       - "nice"
       - "appsflyer"
+      # Added 2026-06-30 — live-verified to return jobs via the Greenhouse board API.
+      - "sisense"
+      - "lightrun"
+      - "wizinc"
+      - "gongio"
+      - "unity3d"
+      - "tipaltisolutions"
+      - "playtikaltd"
+      - "armissecurity"
 
   # Israeli companies with public Lever boards. Slug = https://jobs.lever.co/<slug>
   lever:
     enabled: true
     boards:
       - "logz"
+
+  # Jobicy remote-jobs aggregator (public API, no key). geo "israel" returns
+  # EMEA/Anywhere remote roles open to an Israel-based applicant; industry
+  # "engineering" narrows to dev. Live-verified 2026-06-30.
+  jobicy:
+    enabled: true
+    geo: "israel"
+    industry: "engineering"
+    count: 50
 
   # Comeet ATS (very common among Israeli companies). Public Careers API; opt-in.
   # Each company needs its uid + token (Comeet: Settings -> Careers Website ->
@@ -87,13 +105,16 @@ filters:
     ["engineer", "developer", "programmer", "software", "full stack", "fullstack",
      "full-stack", "front end", "frontend", "front-end", "back end", "backend",
      "back-end", "web", "mobile", "android", "ios", "qa", "automation", "test",
-     "devops", "data engineer", "machine learning"]
+     "devops", "data engineer", "machine learning",
+     "מפתח", "מתכנת", "מהנדס תוכנה", "מהנדסת תוכנה", "פיתוח תוכנה", "פיתוח",
+     "תוכנה", "בקאנד", "פרונטאנד", "פול סטאק", "פולסטאק", "אוטומציה", "אנדרואיד"]
 
   # Junior/grad terms + core entry-level tech. Drives the min_match_score gate.
   keywords_allow:
     ["junior", "graduate", "entry level", "entry-level", "new grad", "student",
      "python", "java", "javascript", "typescript", "react", "node", "c#", "sql",
-     "html", "css"]
+     "html", "css",
+     "ג'וניור", "גוניור", "מתחיל", "סטודנט", "התמחות", "מתמחה", "בוגר", "הנדסאי", "תואר"]
 
   # No topic exclusions for now (openness over a narrow filter).
   keywords_deny: []
@@ -139,7 +160,8 @@ filters:
     ["senior", "sr.", "staff", "principal", "lead", "head of", "vice president",
      "director", "manager", "architect", "expert", "experienced", "5+ years",
      "6+ years", "7+ years", "8+ years", "9+ years", "10+ years",
-     "research scientist", "phd", "fellow", " ii", " iii", " iv"]
+     "research scientist", "phd", "fellow", " ii", " iii", " iv",
+     "בכיר", "ראש צוות", "מוביל", "מומחה", "ארכיטקט"]
 
   # Title-only exclusion of role TYPES that share a software word but aren't a
   # software-developer first job. NOTE: titles_allow includes the broad term
@@ -171,7 +193,9 @@ filters:
      "application engineer", "founding", "office assistant", "administrative",
      "receptionist", "community", "website admin", "web admin",
      # IT-ops / advocacy roles observed in real collected data.
-     "it specialist", "developer advocate", "noc engineer"]
+     "it specialist", "developer advocate", "noc engineer",
+     "מכירות", "תמיכה", "גיוס", "שיווק", "פיתוח עסקי", "חשמל", "מכונות", "מכני",
+     "מעצב", "אנליסט"]
 
   min_match_score: 1
 
@@ -195,7 +219,10 @@ filters:
      "ramat gan", "givatayim", "bnei brak", "holon", "bat yam", "herzliya",
      "petah tikva", "petach tikva", "ra'anana", "raanana", "kfar saba",
      "hod hasharon", "rosh haayin", "or yehuda", "rishon lezion", "rishon",
-     "rehovot", "ness ziona", "nes ziona", "netanya", "central district", "merkaz"]
+     "rehovot", "ness ziona", "nes ziona", "netanya", "central district", "merkaz",
+     "ישראל", "תל אביב", "תל-אביב", "רמת גן", "הרצליה", "פתח תקווה",
+     "ראשון לציון", "רעננה", "כפר סבא", "נתניה", "חיפה", "ירושלים",
+     "באר שבע", "מרכז", "גוש דן"]
   boost_weight: 3
 
   # JUNIOR ranking (title only). A dedicated, heavier boost so explicit entry-level
@@ -203,7 +230,8 @@ filters:
   # ones. Weight > (israel + one center city) so a remote junior role still wins.
   junior_boost_keywords:
     ["junior", "graduate", "entry level", "entry-level", "new grad", "new-grad",
-     "student", "intern", "trainee", "associate"]
+     "student", "intern", "trainee", "associate",
+     "ג'וניור", "גוניור", "מתחיל", "סטודנט", "מתמחה", "התמחות", "בוגר", "הנדסאי", "סטאז'"]
   junior_boost_weight: 8
 
 digest:

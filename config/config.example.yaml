@@ -63,6 +63,15 @@ sources:
     boards:
       - "logz"
 
+  # Jobicy remote-jobs aggregator (public API, no key). geo "israel" returns
+  # EMEA/Anywhere remote roles open to an Israel-based applicant; industry
+  # "engineering" narrows to dev.
+  jobicy:
+    enabled: false
+    geo: "israel"
+    industry: "engineering"
+    count: 50
+
   # Comeet ATS — widely used by Israeli companies. Public Careers API; opt-in.
   # Find each company's uid + token on the Comeet side under
   # Settings -> Careers Website -> Careers API, then add an entry per company.
