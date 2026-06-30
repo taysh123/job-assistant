@@ -227,3 +227,39 @@ def test_filter_unseen_against_db(repo):
     b = make_job(external_id="2")
     unseen = filter_unseen([a, b, make_job(external_id="2")], repo)
     assert [j.external_id for j in unseen] == ["2"]
+
+
+# --- Wave 0 FIX A: geo-deny matches whole words, not substrings -------------
+
+def test_geo_deny_does_not_drop_onsite_jerusalem():
+    # The real bug: "usa" in locations_deny matched the substring in "jerUSAlem".
+    e = engine(titles_allow=["engineer"], locations_deny=["usa", "new york"])
+    job = e.evaluate(make_job(title="Software Engineer", remote=False,
+                              location="Jerusalem, Israel"))
+    assert job is not None
+
+
+def test_geo_deny_still_drops_standalone_denied_token():
+    e = engine(titles_allow=["engineer"], locations_deny=["usa", "new york"])
+    assert e.evaluate(make_job(title="Software Engineer", remote=False,
+                               location="New York, USA")) is None
+
+
+def test_geo_deny_whole_word_keeps_israeli_cities():
+    e = engine(titles_allow=["engineer"], locations_deny=["usa", "india", "china"])
+    for city in ["Jerusalem, Israel", "Ramat Gan, Israel", "Herzliya"]:
+        assert e.evaluate(make_job(title="Software Engineer", remote=False,
+                                   location=city)) is not None, city
+
+
+def test_geo_deny_whole_word_preserves_region_lock_behavior():
+    e = engine(titles_allow=["engineer"], locations_deny=["india", "bangalore"])
+    # On-site abroad dropped.
+    assert e.evaluate(make_job(title="Software Engineer", remote=False,
+                               location="Bangalore, India")) is None
+    # Remote pinned to a denied region (no global marker) dropped.
+    assert e.evaluate(make_job(title="Software Engineer", remote=True,
+                               location="Bangalore, India")) is None
+    # Remote + a global marker stays eligible.
+    assert e.evaluate(make_job(title="Software Engineer", remote=True,
+                               location="Remote - Anywhere (India team)")) is not None

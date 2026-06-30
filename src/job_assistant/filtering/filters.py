@@ -11,6 +11,8 @@ Telegram card can explain *why* it surfaced.
 
 from __future__ import annotations
 
+import re
+
 from ..config import FiltersConfig
 from ..models import Job
 from .experience import required_years
@@ -54,6 +56,25 @@ def _contains_any(text: str, needles: list[str]) -> list[str]:
     return [n for n in needles if n and n.lower() in low]
 
 
+def _location_denied(location: str, needles: list[str]) -> list[str]:
+    """Whole-word/phrase location-deny match.
+
+    Unlike :func:`_contains_any` (substring), a deny term matches only when it
+    appears as a standalone token, so ``"usa"`` does NOT match ``"Jerusalem"``.
+    Multi-word terms (``"new york"``) match as phrases. Boundaries are
+    non-alphanumeric, so commas/spaces delimit tokens and non-Latin text (Hebrew,
+    added later) keeps working.
+    """
+    low = location.lower()
+    hits: list[str] = []
+    for n in needles:
+        if not n:
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(n.lower())}(?![a-z0-9])", low):
+            hits.append(n)
+    return hits
+
+
 class FilterEngine:
     def __init__(self, config: FiltersConfig):
         self.config = config
@@ -75,7 +96,7 @@ class FilterEngine:
         # location-agnostic, but when its location pins it to a denied region with
         # no anywhere/worldwide/remote marker, it's region-restricted hiring —
         # equally unusable — so it is dropped too.
-        if _contains_any(job.location, cfg.locations_deny):
+        if _location_denied(job.location, cfg.locations_deny):
             if not job.remote or not _location_is_global(job.location):
                 return None
 
